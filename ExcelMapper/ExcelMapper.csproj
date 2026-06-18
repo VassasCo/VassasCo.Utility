@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
+
+    <PackageId>VassasCo.Utility.ExcelMapper</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      原生对象→Excel映射引擎 — 将对象列表/字典导出为 .xlsx 文件，无需 COM/VSTO。
+      特性：嵌套类自动展开为父子合并表头、数组/List字段生成独立Sheet、Dictionary自适应宽表/竖表、
+      [ExcelDisplay] 自定义列标题、子Sheet关联列智能匹配（Id/Uid/Vid）、全可配置样式（表头/边框/冻结/列宽/数字格式）、Fluent Builder API。
+    </Description>
+    <PackageTags>excel;xlsx;mapper;export;closedxml;spreadsheet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    <PackageReference Include="ClosedXML" Version="0.102.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

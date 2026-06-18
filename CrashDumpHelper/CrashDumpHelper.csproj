@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
+
+    <PackageId>VassasCo.Utility.CrashDumpHelper</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      崩溃捕获工具 — 记录崩溃前 FirstChance 异常链 + 生成 Windows MiniDump 文件。
+      特性：FirstChance 异常追踪（最多50条循环覆盖）、崩溃日志、Windows MiniDump 生成、与 LogHelper 自动集成。
+    </Description>
+    <PackageTags>crash;dump;minidump;exception;debugging;diagnostics</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

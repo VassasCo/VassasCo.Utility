@@ -1,0 +1,21 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.nupkg
+.vs/
+
+# IDE
+.idea/
+*.swp
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NuGet packages (don't commit actual packages)
+out/
+*.nupkg

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
+
+    <PackageId>VassasCo.Utility.SnowflakeIdHelper</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      分布式雪花 ID 生成器。
+      特性：单调时钟杜绝时钟回拨、集群 WorkerId 自动分配、ID 反解（时间戳/WorkerId/序列号）、高性能位运算。
+    </Description>
+    <PackageTags>snowflake;id;distributed;unique-id;sequence</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

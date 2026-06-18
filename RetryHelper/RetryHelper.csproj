@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
+
+    <PackageId>VassasCo.Utility.RetryHelper</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      智能重试器 — 支持退避策略（固定/线性/指数）+ 抖动 + 断路器 + 降级 + 超时，同时提供同步和异步 API。
+      特性：Builder 链式配置、断路器三态（Closed/Open/HalfOpen）、单次超时和总超时、自定义重试判断、重试回调、完整重试报告。
+    </Description>
+    <PackageTags>retry;circuit-breaker;backoff;jitter;fallback;timeout;resilience</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
