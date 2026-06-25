@@ -281,7 +281,8 @@ namespace VassasCo.Utility
             .WithJitter(JitterType.Full)
             .Build()).Value;
 
-        private TimeSpan _lastWaitDuration;
+        private int _lastWaitDurationMs;
+        private static long ToMsSafe(TimeSpan ts) => ts.Ticks < 0 ? 0L : (ts.TotalMilliseconds > int.MaxValue ? int.MaxValue : (long)ts.TotalMilliseconds);
 
         #region Sync Execution
 
@@ -343,7 +344,7 @@ namespace VassasCo.Utility
                         attemptSw.Stop();
                         ctx.Elapsed = attemptSw.Elapsed;
                         ctx.TotalElapsed = totalStopwatch.Elapsed;
-                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : _lastWaitDuration;
+                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(_lastWaitDurationMs);
 
                         CircuitBreaker?.RecordSuccess(OperationKey!);
 
@@ -362,7 +363,7 @@ namespace VassasCo.Utility
                         ctx.Elapsed = attemptSw.Elapsed;
                         ctx.TotalElapsed = totalStopwatch.Elapsed;
                         ctx.Exception = ex;
-                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : _lastWaitDuration;
+                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(_lastWaitDurationMs);
                         report.Attempts.Add(ctx);
 
                         CircuitBreaker?.RecordFailure(OperationKey!);
@@ -370,7 +371,7 @@ namespace VassasCo.Utility
                         try { OnRetryCallback?.Invoke(ctx); } catch { }
 
                         var wait = CalculateBackoff(attempt);
-                        _lastWaitDuration = wait;
+                        Interlocked.Exchange(ref _lastWaitDurationMs, (int)wait.TotalMilliseconds);
 
                         if (wait > TimeSpan.Zero)
                             linkedCts.Token.WaitHandle.WaitOne(wait);
@@ -446,7 +447,7 @@ namespace VassasCo.Utility
                 sw.Stop();
                 ctx.Elapsed = sw.Elapsed;
                 ctx.TotalElapsed = totalStopwatch.Elapsed;
-                ctx.WaitDuration = MaxRetries > 1 ? _lastWaitDuration : TimeSpan.Zero;
+                ctx.WaitDuration = MaxRetries > 1 ? TimeSpan.FromMilliseconds(_lastWaitDurationMs) : TimeSpan.Zero;
 
                 CircuitBreaker?.RecordSuccess(OperationKey!);
 
@@ -462,7 +463,7 @@ namespace VassasCo.Utility
                 ctx.Elapsed = sw.Elapsed;
                 ctx.TotalElapsed = totalStopwatch.Elapsed;
                 ctx.Exception = ex;
-                ctx.WaitDuration = MaxRetries > 1 ? _lastWaitDuration : TimeSpan.Zero;
+                ctx.WaitDuration = MaxRetries > 1 ? TimeSpan.FromMilliseconds(_lastWaitDurationMs) : TimeSpan.Zero;
                 report.Attempts.Add(ctx);
 
                 CircuitBreaker?.RecordFailure(OperationKey!);
@@ -550,7 +551,7 @@ namespace VassasCo.Utility
                         attemptSw.Stop();
                         ctx.Elapsed = attemptSw.Elapsed;
                         ctx.TotalElapsed = totalStopwatch.Elapsed;
-                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : _lastWaitDuration;
+                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(_lastWaitDurationMs);
 
                         CircuitBreaker?.RecordSuccess(OperationKey!);
 
@@ -569,7 +570,7 @@ namespace VassasCo.Utility
                         ctx.Elapsed = attemptSw.Elapsed;
                         ctx.TotalElapsed = totalStopwatch.Elapsed;
                         ctx.Exception = ex;
-                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : _lastWaitDuration;
+                        ctx.WaitDuration = attempt == 1 ? TimeSpan.Zero : TimeSpan.FromMilliseconds(_lastWaitDurationMs);
                         report.Attempts.Add(ctx);
 
                         CircuitBreaker?.RecordFailure(OperationKey!);
@@ -577,7 +578,7 @@ namespace VassasCo.Utility
                         try { OnRetryCallback?.Invoke(ctx); } catch { }
 
                         var wait = CalculateBackoff(attempt);
-                        _lastWaitDuration = wait;
+                        Interlocked.Exchange(ref _lastWaitDurationMs, (int)wait.TotalMilliseconds);
 
                         if (wait > TimeSpan.Zero)
                         {
@@ -651,7 +652,7 @@ namespace VassasCo.Utility
                 sw.Stop();
                 ctx.Elapsed = sw.Elapsed;
                 ctx.TotalElapsed = totalStopwatch.Elapsed;
-                ctx.WaitDuration = MaxRetries > 1 ? _lastWaitDuration : TimeSpan.Zero;
+                ctx.WaitDuration = MaxRetries > 1 ? TimeSpan.FromMilliseconds(_lastWaitDurationMs) : TimeSpan.Zero;
 
                 CircuitBreaker?.RecordSuccess(OperationKey!);
 
@@ -667,7 +668,7 @@ namespace VassasCo.Utility
                 ctx.Elapsed = sw.Elapsed;
                 ctx.TotalElapsed = totalStopwatch.Elapsed;
                 ctx.Exception = ex;
-                ctx.WaitDuration = MaxRetries > 1 ? _lastWaitDuration : TimeSpan.Zero;
+                ctx.WaitDuration = MaxRetries > 1 ? TimeSpan.FromMilliseconds(_lastWaitDurationMs) : TimeSpan.Zero;
                 report.Attempts.Add(ctx);
 
                 CircuitBreaker?.RecordFailure(OperationKey!);
@@ -763,7 +764,7 @@ namespace VassasCo.Utility
 
                 case JitterType.Decorrelated:
                 {
-                    var cap = Math.Min(interval.TotalMilliseconds, _lastWaitDuration.TotalMilliseconds * 3);
+                    var cap = Math.Min(interval.TotalMilliseconds, _lastWaitDurationMs * 3);
                     return TimeSpan.FromMilliseconds(cap * RandomProvider());
                 }
 

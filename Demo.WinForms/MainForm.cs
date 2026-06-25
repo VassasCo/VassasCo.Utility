@@ -206,7 +206,6 @@ namespace WinFormsDemo
                 var path = Path.Combine(_exportDir, "SimpleList.xlsx");
                 ExcelMapper.ToFile(orders, path, "Orders");
                 AppendOutput($"Exported: {path} (3 orders)");
-                AppendOutput("  Headers use [ExcelDisplay]: 订单编号, 客户名称, 订单金额, 下单日期");
             }
             catch (Exception ex) { AppendOutput($"Error: {ex.Message}"); }
         }
@@ -237,8 +236,6 @@ namespace WinFormsDemo
                 var path = Path.Combine(_exportDir, "NestedData.xlsx");
                 ExcelMapper.ToFile(orders, path, "Orders");
                 AppendOutput($"Exported: {path}");
-                AppendOutput("  [ExcelDisplay] columns: 订单编号, 客户名称, 订单金额, 下单日期, 客户信息, 订单明细");
-                AppendOutput("  Child sheet: 'Orders.订单明细', parent column: '订单编号'");
             }
             catch (Exception ex) { AppendOutput($"Error: {ex.Message}"); }
         }

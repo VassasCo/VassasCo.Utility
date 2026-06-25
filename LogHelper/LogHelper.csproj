@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
 
     <PackageId>VassasCo.Utility.LogHelper</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
+    <PackageOutputPath>..\nupkgs\$(PackageId)\</PackageOutputPath>
     <Authors>VassasCo</Authors>
     <Description>
       高性能异步日志系统。
@@ -17,7 +17,6 @@
     </Description>
     <PackageTags>logging;log;async;file-log;performance</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
@@ -31,7 +30,6 @@
   <ItemGroup>
     <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

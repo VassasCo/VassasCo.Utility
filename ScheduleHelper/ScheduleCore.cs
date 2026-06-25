@@ -443,7 +443,7 @@ namespace VassasCo.Utility
                 {
                     if (_config.Mode == ScheduleMode.FixedDelay)
                         ScheduleNext();
-                    else if (_config.Mode != ScheduleMode.FixedRate)
+                    else
                         ScheduleNext();
                 }
             }

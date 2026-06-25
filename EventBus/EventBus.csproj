@@ -1,22 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
 
-    <PackageId>VassasCo.Utility.RetryHelper</PackageId>
-    <Version>1.1.0</Version>
+    <PackageId>VassasCo.Utility.EventBus</PackageId>
+    <Version>1.0.0</Version>
     <PackageOutputPath>..\nupkgs\$(PackageId)\</PackageOutputPath>
     <Authors>VassasCo</Authors>
     <Description>
-      智能重试器 — 支持退避策略（固定/线性/指数）+ 抖动 + 断路器 + 降级 + 超时，同时提供同步和异步 API。
-      特性：Builder 链式配置、断路器三态（Closed/Open/HalfOpen）、单次超时和总超时、自定义重试判断、重试回调、完整重试报告。
+      轻量级进程内事件总线 — 类型安全的事件发布/订阅，支持特性标注自动注册、优先级排序、条件过滤、粘性事件、异步处理。支持 .NET Standard 2.0 / .NET 6 / .NET 8 / .NET 9 / .NET 10。
     </Description>
-    <PackageTags>retry;circuit-breaker;backoff;jitter;fallback;timeout;resilience</PackageTags>
+    <PackageTags>eventbus;pubsub;event;messaging;decoupled</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
@@ -26,6 +27,7 @@
   <ItemGroup>
     <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

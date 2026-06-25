@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Reflection;
 
 namespace VassasCo.Utility
@@ -136,6 +137,8 @@ namespace VassasCo.Utility
             return !(type.IsClass && type != typeof(string));
         }
     }
+
+    // ── 以下为兼容旧版 API 的特性 ──
 
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class ConfigKeyAttribute(string key) : Attribute

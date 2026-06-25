@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
 
     <PackageId>VassasCo.Utility.ScheduleHelper</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
+    <PackageOutputPath>..\nupkgs\$(PackageId)\</PackageOutputPath>
     <Authors>VassasCo</Authors>
     <Description>
       全能定时任务调度器。
@@ -17,7 +17,6 @@
     </Description>
     <PackageTags>scheduler;cron;timer;job;scheduling;task</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
@@ -27,8 +26,10 @@
   <ItemGroup>
     <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.4" />
   </ItemGroup>
 
 </Project>

@@ -242,10 +242,14 @@ namespace VassasCo.Utility
                 {
                     var process = Process.GetCurrentProcess();
                     MiniDumpWriteDump(process.Handle, (uint)process.Id, fs.SafeFileHandle,
-                        MINIDUMP_TYPE.MiniDumpWithFullMemory
-                        | MINIDUMP_TYPE.MiniDumpWithHandleData
+                        MINIDUMP_TYPE.MiniDumpNormal
+                        | MINIDUMP_TYPE.MiniDumpWithDataSegs
+                        | MINIDUMP_TYPE.MiniDumpWithIndirectlyReferencedMemory
                         | MINIDUMP_TYPE.MiniDumpWithThreadInfo
-                        | MINIDUMP_TYPE.MiniDumpWithUnloadedModules,
+                        | MINIDUMP_TYPE.MiniDumpWithUnloadedModules
+                        | MINIDUMP_TYPE.MiniDumpWithProcessThreadData
+                        | MINIDUMP_TYPE.MiniDumpWithCodeSegs
+                        | MINIDUMP_TYPE.MiniDumpIgnoreInaccessibleMemory,
                         IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
                 }
 

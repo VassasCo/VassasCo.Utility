@@ -56,6 +56,7 @@ namespace VassasCo.Utility
         private readonly long _epochMs;
         private readonly int _workerId;
         private readonly int _dataCenterId;
+        private readonly long _startRealTimeMs;         // 生成器创建时的真实 UTC 时间（Unix 毫秒）
         private static readonly long _stopwatchFrequency = Stopwatch.Frequency;
         private readonly long _baseStopwatchTicks;
 
@@ -143,6 +144,7 @@ namespace VassasCo.Utility
             _workerId = workerId;
             _dataCenterId = dataCenterId;
             _epochMs = (long)(epoch - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;
+            _startRealTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             _baseStopwatchTicks = Stopwatch.GetTimestamp();
         }
 
@@ -253,7 +255,7 @@ namespace VassasCo.Utility
         {
             var elapsedTicks = Stopwatch.GetTimestamp() - _baseStopwatchTicks;
             var elapsedMs = elapsedTicks * 1000L / _stopwatchFrequency;
-            return _epochMs + elapsedMs;
+            return _startRealTimeMs + elapsedMs;
         }
 
         /// <summary>自旋等待直到进入下一毫秒（序列号耗尽时使用）</summary>

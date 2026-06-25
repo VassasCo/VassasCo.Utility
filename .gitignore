@@ -18,4 +18,5 @@ Thumbs.db
 
 # NuGet packages (don't commit actual packages)
 out/
+nupkgs/
 *.nupkg

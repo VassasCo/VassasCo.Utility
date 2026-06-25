@@ -6,19 +6,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
 
     <PackageId>VassasCo.Utility.ExcelMapper</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.0.0</Version>
+    <PackageOutputPath>..\nupkgs\$(PackageId)\</PackageOutputPath>
     <Authors>VassasCo</Authors>
     <Description>
       原生对象→Excel映射引擎 — 将对象列表/字典导出为 .xlsx 文件，无需 COM/VSTO。
-      特性：嵌套类自动展开为父子合并表头、数组/List字段生成独立Sheet、Dictionary自适应宽表/竖表、
-      [ExcelDisplay] 自定义列标题、子Sheet关联列智能匹配（Id/Uid/Vid）、全可配置样式（表头/边框/冻结/列宽/数字格式）、Fluent Builder API。
+      特性：嵌套类自动展开为父子合并表头、数组/List字段生成独立Sheet、Dictionary自适应宽表/竖表、全可配置样式（表头/边框/冻结/列宽/数字格式）、Fluent Builder API。
     </Description>
     <PackageTags>excel;xlsx;mapper;export;closedxml;spreadsheet</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
@@ -40,7 +38,6 @@
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

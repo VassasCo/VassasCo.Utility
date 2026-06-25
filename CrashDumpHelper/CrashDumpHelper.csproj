@@ -6,10 +6,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591;CS0436</NoWarn>
 
     <PackageId>VassasCo.Utility.CrashDumpHelper</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
+    <PackageOutputPath>..\nupkgs\$(PackageId)\</PackageOutputPath>
     <Authors>VassasCo</Authors>
     <Description>
       崩溃捕获工具 — 记录崩溃前 FirstChance 异常链 + 生成 Windows MiniDump 文件。
@@ -17,7 +17,6 @@
     </Description>
     <PackageTags>crash;dump;minidump;exception;debugging;diagnostics</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageIcon>Icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
@@ -27,7 +26,6 @@
   <ItemGroup>
     <Compile Include="..\IsExternalInit.cs" Link="IsExternalInit.cs" />
     <None Include="README.md" Pack="true" PackagePath="\" />
-    <None Include="..\Assets\Icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

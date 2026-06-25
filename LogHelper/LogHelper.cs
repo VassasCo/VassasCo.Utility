@@ -297,10 +297,13 @@ namespace VassasCo.Utility
             foreach (var dayDir in Directory.GetDirectories(monthDir))
             {
                 var dirName = Path.GetFileName(dayDir);
-                if (!DateTime.TryParseExact(dirName, "MM-dd", null, System.Globalization.DateTimeStyles.None, out _)) continue;
                 var monthDirName = Path.GetFileName(monthDir);
-                if (!DateTime.TryParseExact($"{monthDirName}-{dirName}", "yyyy-MM-MM-dd", null,
-                        System.Globalization.DateTimeStyles.None, out var fullDate)) continue;
+                if (!DateTime.TryParseExact(monthDirName, "yyyy-MM", null,
+                        System.Globalization.DateTimeStyles.None, out var monthDate)) continue;
+                if (!DateTime.TryParseExact(dirName, "MM-dd", null,
+                        System.Globalization.DateTimeStyles.None, out _)) continue;
+                var fullDate = new DateTime(monthDate.Year, monthDate.Month,
+                    int.Parse(dirName.Split('-')[1]));
                 if (fullDate >= cutoffDate) continue;
                 try { Directory.Delete(dayDir, true); }
                 catch (Exception ex) { Debug.WriteLine($"删除过期日志目录失败 {dayDir}: {ex}"); }

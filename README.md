@@ -1,47 +1,55 @@
 # VassasCo.Utility
 
-C# 桌面开发工具库（WinForm / WPF / Avalonia），包含 7 个功能模块。
+C# 桌面开发工具库 — 面向 WinForm / WPF / Avalonia 的高质量通用组件集合。
 
-## NuGet 安装
+## 包含模块
 
-### 安装全部功能
+| 模块 | NuGet 包名 | 简介 |
+|------|-----------|------|
+| ConfigHelper | `VassasCo.Utility.ConfigHelper` | 零代码实体类 ⇋ JSON/XML 配置双向映射 |
+| LogHelper | `VassasCo.Utility.LogHelper` | 异步高性能日志系统（14 种日志类型） |
+| CrashDumpHelper | `VassasCo.Utility.CrashDumpHelper` | 崩溃捕获 + MiniDump 生成 |
+| SnowflakeIdHelper | `VassasCo.Utility.SnowflakeIdHelper` | 分布式雪花 ID 生成器（防时钟回拨） |
+| ScheduleHelper | `VassasCo.Utility.ScheduleHelper` | 全能定时任务调度器（CRON/固定速率） |
+| RetryHelper | `VassasCo.Utility.RetryHelper` | 智能重试器（退避+抖动+断路器+降级） |
+| EventBus | `VassasCo.Utility.EventBus` | 进程内事件总线（类型安全、特性注册、粘性事件） |
+| ExcelMapper | `VassasCo.Utility.ExcelMapper` | 原生对象→Excel 映射引擎 |
+
+## 安装
 
 ```bash
+# 一键安装全部模块
 dotnet add package VassasCo.Utility
-```
 
-### 按需安装单独模块
-
-```bash
-dotnet add package VassasCo.Utility.ConfigHelper
-dotnet add package VassasCo.Utility.LogHelper
-dotnet add package VassasCo.Utility.CrashDumpHelper
+# 或按需安装单个模块
 dotnet add package VassasCo.Utility.SnowflakeIdHelper
-dotnet add package VassasCo.Utility.ScheduleHelper
 dotnet add package VassasCo.Utility.RetryHelper
-dotnet add package VassasCo.Utility.ExcelMapper
 ```
 
-## 模块概览
+## 快速开始
 
-| 模块 | 功能 |
-|------|------|
-| **ConfigHelper** | 零代码实体类与 JSON/XML 配置文件双向映射。支持注释、热重载、原子保存、列表展开 |
-| **LogHelper** | 异步高性能日志系统。建造者模式、异步队列、自动清理、14 种日志类型 |
-| **CrashDumpHelper** | 崩溃捕获 + FirstChance 异常追踪 + MiniDump 生成 |
-| **SnowflakeIdHelper** | 分布式雪花 ID 生成器。单调时钟杜绝回拨、集群 WorkerId 分配、ID 反解 |
-| **ScheduleHelper** | 全能定时任务调度器。CRON / 固定速率 / 固定延迟、重试退避、超时取消、日历过滤、线程池、优雅关闭 |
-| **RetryHelper** | 智能重试器。指数退避 + 抖动 + 断路器三态 + 降级 + 超时，同步 / 异步 |
-| **ExcelMapper** | 原生对象到 Excel 映射。`[ExcelDisplay]` 自定义列标题、嵌套类子表头合并、数组独立 Sheet（子 Sheet 自动关联父行）、Dictionary 自适应、全可配置样式 |
+```csharp
+// 雪花 ID
+long id = SnowflakeIdHelper.Next();
 
-## 兼容性
+// 重试
+await RetryPolicy.Default.ExecuteAsync(async () => await CallApiAsync());
 
-- .NET Standard 2.0
-- .NET 6
-- .NET 8
+// 配置
+var cfg = ConfigFactory.Load<AppConfig>();
+ConfigFactory.Save(cfg);
 
-支持 WinForm / WPF / Avalonia 桌面应用。
+// 日志
+LogHelper.LogInfo("服务启动", "System");
 
-## 许可证
+// Excel 导出
+ExcelMapper.ToFile(orders, "orders.xlsx");
+
+// 事件总线
+EventBus.Default.Subscribe<OrderCreatedEvent>(e => HandleOrder(e));
+EventBus.Default.Publish(new OrderCreatedEvent("ORD-001", 99.9m));
+```
+
+## 许可
 
 MIT License

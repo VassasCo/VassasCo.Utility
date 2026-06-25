@@ -93,7 +93,7 @@ namespace VassasCo.Utility
         {
             var mapper = new ExcelMapperBuilder<object>(null!);
             mapper.WithSheetName(sheetName ?? "Dictionary");
-            ExcelGenerator.WriteDictionary(dictionary, null, stream, mapper._sheetName, mapper._style);
+            ExcelGenerator. WriteDictionary(dictionary, null, stream, mapper._sheetName, mapper._style);
         }
     }
 
