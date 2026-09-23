@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/VassasCo.Utility.ExcelMapper.Tests/VassasCo.Utility.ExcelMapper.Tests.csproj" />
     <Project Path="tests/VassasCo.Utility.LogHelper.Tests/VassasCo.Utility.LogHelper.Tests.csproj" />
+    <Project Path="tests/VassasCo.Utility.ConfigHelper.Tests/VassasCo.Utility.ConfigHelper.Tests.csproj" />
   </Folder>
 </Solution>
