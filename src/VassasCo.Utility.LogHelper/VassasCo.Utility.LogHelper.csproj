@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>VassasCo.Utility</RootNamespace>
+    <AssemblyName>VassasCo.Utility.LogHelper</AssemblyName>
+
+    <PackageId>VassasCo.Utility.LogHelper</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      轻量级异步文件日志库（桌面/服务端通用，零外部依赖）。
+      特性：日志「级别」与「分类」双维度分离、有界队列 + 后台单线程异步写入、
+      按分类分文件 + 按天分目录、跨天自动切换、自动清理过期日志、定时批量刷盘、
+      可靠关闭（排空队列不丢日志）、异常回调、路径安全校验。
+    </Description>
+    <PackageTags>logging;log;async;file-log</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>VassasCoIcon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VassasCo.Utility.LogHelper.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="True" PackagePath="\" />
+    <None Include="VassasCoIcon.png" Pack="True" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,28 @@
+# Visual Studio 本地缓存与用户配置
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VSCode 本地配置
+.vscode/
+
+# 编译输出
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+
+# NuGet 构建产物
+*.nupkg
+*.snupkg
+artifacts/
+
+# 测试结果
+[Tt]est[Rr]esult*/
+*.coverage
+*.coveragexml
+
+# 其它
+*.log

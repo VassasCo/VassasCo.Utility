@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>VassasCo.Utility</RootNamespace>
+    <AssemblyName>VassasCo.Utility.ExcelMapper</AssemblyName>
+
+    <PackageId>VassasCo.Utility.ExcelMapper</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      原生对象到 Excel/CSV 的映射引擎（桌面/服务端通用，无需 COM/VSTO）。
+      特性：侵入式特性与非侵入式 Fluent 双配置模式、嵌套类多层合并表头、集合子Sheet/摊平/占位/JSON 四种渲染、
+      分页多Sheet/多文件、异步写入（取消/进度）、ClosedXML DOM 与 OpenXML 流式双引擎、
+      条件格式表达式、长数字自动转文本、安全 CSV（RFC4180/BOM/公式注入防护）、Excel/CSV 安全导入。
+    </Description>
+    <PackageTags>excel;xlsx;csv;mapper;export;import;closedxml;openxml</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>VassasCoIcon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VassasCo.Utility.ExcelMapper.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="True" PackagePath="\" />
+    <None Include="VassasCoIcon.png" Pack="True" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="ClosedXML" Version="0.102.3" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.19.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
+  </ItemGroup>
+
+</Project>

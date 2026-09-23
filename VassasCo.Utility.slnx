@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VassasCo.Utility.ExcelMapper/VassasCo.Utility.ExcelMapper.csproj" />
+    <Project Path="src/VassasCo.Utility.LogHelper/VassasCo.Utility.LogHelper.csproj" />
+    <Project Path="src/VassasCo.Utility.ConfigHelper/VassasCo.Utility.ConfigHelper.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VassasCo.Utility.ExcelMapper.Tests/VassasCo.Utility.ExcelMapper.Tests.csproj" />
+    <Project Path="tests/VassasCo.Utility.LogHelper.Tests/VassasCo.Utility.LogHelper.Tests.csproj" />
+  </Folder>
+</Solution>
