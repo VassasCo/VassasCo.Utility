@@ -13,6 +13,7 @@
 ## 目录
 
 - [项目概览](#项目概览)
+- [支持的 .NET Framework 版本](#支持的-net-framework-版本)
 - [解决方案结构](#解决方案结构)
 - [构建](#构建)
 - [测试](#测试)
@@ -39,6 +40,27 @@ LogHelper         （零依赖）
 EventBus          （零依赖）
 CrashDumpHelper   ──▶ LogHelper        ← 显式项目引用，打包后自动传递
 ```
+
+---
+
+## 支持的 .NET Framework 版本
+
+每个组件同时提供 `net472` 与 `netstandard2.0` 两份资产，NuGet 会按「项目框架兼容的最高 TFM」自动选择：
+
+| 项目目标框架 | 选中的资产 | 说明 |
+|---|---|---|
+| .NET Framework 4.6.1 / 4.6.2 / 4.7 / 4.7.1 | `netstandard2.0` | 可用，见下方注意事项 |
+| .NET Framework 4.7.2 / 4.8 | `net472` | 推荐，原生资产无额外开销 |
+| .NET 6 / 8 / 9 / 10 | 对应的 `net6.0` ~ `net10.0` | 各组件支持范围见概览表 |
+
+**注意事项**
+
+- **最低门槛是 .NET Framework 4.6.1**，因为 `netstandard2.0` 从该版本起才被支持。
+  4.6.0 及更早版本仅支持到 `netstandard1.3`，无法引用本库。
+- 目标框架低于 4.7.2 时，ConfigHelper 与 ExcelMapper 会额外拖入一批 `netstandard2.0`
+  兼容程序集（facade）。其中 ExcelMapper 因依赖 ClosedXML，输出目录的 DLL 数量会显著增加；
+  若使用 `packages.config` 旧式项目，还需要额外处理 binding redirect。
+- 因此**推荐目标框架 4.7.2 及以上**，此时命中 `net472` 原生资产，无上述开销。
 
 ---
 
@@ -104,6 +126,14 @@ dotnet test VassasCo.Utility.slnx
 - 报表布局与图片一致，仅在 DOM 引擎实现：`Engine = Auto` 时检测到布局行自动选用 DOM；
   显式指定流式引擎时抛 `ExcelPlanValidationException`，避免生成缺标题的文件。
 - 未使用任何布局方法时，表头仍从第 1 行开始，与旧版本行为完全一致。
+
+**依赖与安全**
+
+- ConfigHelper 的 `System.Text.Json` 由 **8.0.4 升级至 8.0.5**，与 ExcelMapper 对齐。
+  8.0.4 存在已知高危漏洞 [GHSA-8g4q-xg66-9fp4](https://github.com/advisories/GHSA-8g4q-xg66-9fp4)，
+  升级后 NuGet 审计告警消除。该依赖仅用于 `net472` 与 `netstandard2.0` 目标，
+  `net6.0` 及以上由运行时内置提供。
+- 五个组件的版本号均保持不变。
 
 ### 2.1.0
 

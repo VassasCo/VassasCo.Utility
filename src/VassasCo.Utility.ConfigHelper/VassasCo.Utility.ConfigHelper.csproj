@@ -31,7 +31,7 @@
   <!-- net472 / netstandard2.0 的 BCL 不含 System.Text.Json，需显式引用；
        net6+ 内置于运行时，无需引用。 -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
   </ItemGroup>
 
   <!-- 让任意机器（含未安装 VS / 目标包的 CI）都能构建 net472：
