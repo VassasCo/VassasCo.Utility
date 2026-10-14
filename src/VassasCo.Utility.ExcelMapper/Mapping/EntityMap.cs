@@ -166,6 +166,24 @@ namespace VassasCo.Utility
             return this;
         }
 
+        /// <summary>
+        /// 将该列作为图片插入单元格。属性值支持三种来源：
+        /// 文件路径（string）、图片字节（byte[]）、流（Stream）。
+        /// </summary>
+        /// <param name="configure">可选，用于设置显示尺寸、定位方式与缺失兜底策略</param>
+        /// <remarks>
+        /// 与 <see cref="Hyperlink"/> 互斥；同时标注时以图片为准。
+        /// 图片写入依赖 DOM 引擎（ClosedXML），若强制使用流式引擎则图片会被跳过。
+        /// </remarks>
+        public PropertyMapping<T, TProperty> AsImage(Action<ExcelImageOptions>? configure = null)
+        {
+            Config.AsImage = true;
+            if (Config.Image is null)
+                Config.Image = new ExcelImageOptions();
+            configure?.Invoke(Config.Image);
+            return this;
+        }
+
         /// <summary>忽略该属性</summary>
         public PropertyMapping<T, TProperty> Ignore()
         {
@@ -239,6 +257,8 @@ namespace VassasCo.Utility
         public double? Width;
         public bool WrapText;
         public bool AsHyperlink;
+        public bool AsImage;
+        public ExcelImageOptions? Image;
         public Func<object, object?>? Converter;
         public List<FluentRule> Rules = new List<FluentRule>();
     }

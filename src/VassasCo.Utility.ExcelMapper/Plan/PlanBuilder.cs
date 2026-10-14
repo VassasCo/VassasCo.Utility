@@ -142,6 +142,27 @@ namespace VassasCo.Utility.Internals
                         node.FixedWidth = columnAttr.Width;
                 }
 
+                // 侵入式图片特性：把该属性值当作图片来源插入单元格
+                var imageAttr = prop.GetCustomAttributes(typeof(ExcelImageAttribute), true)
+                                    .FirstOrDefault() as ExcelImageAttribute;
+                if (imageAttr != null)
+                {
+                    node.AsImage = true;
+                    node.Image = new ExcelImageOptions
+                    {
+                        Width = imageAttr.Width,
+                        Height = imageAttr.Height,
+                        SizeMode = imageAttr.SizeMode,
+                        Placement = imageAttr.Placement,
+                        OnMissing = imageAttr.OnMissing,
+                        AdjustRowHeight = imageAttr.AdjustRowHeight,
+                        AdjustColumnWidth = imageAttr.AdjustColumnWidth,
+                        RowPadding = imageAttr.RowPadding,
+                        Name = imageAttr.Name,
+                        BaseDirectory = imageAttr.BaseDirectory
+                    };
+                }
+
                 // 侵入式条件格式特性
                 foreach (var attr in prop.GetCustomAttributes(typeof(ConditionalFormatAttribute), true)
                                           .Cast<ConditionalFormatAttribute>())
@@ -162,7 +183,7 @@ namespace VassasCo.Utility.Internals
                 var converterAttr = prop.GetCustomAttributes(typeof(ExcelConverterAttribute), true)
                                         .FirstOrDefault() as ExcelConverterAttribute;
                 if (converterAttr != null)
-                    node.Converter = CreateConverter(converterAttr.ConverterType, prop);
+                    node.Converter = CreateConverter(converterAttr.ConverterType, converterAttr.Args, prop);
 
                 // Fluent 覆盖（优先级最高）
                 if (fluent != null)
@@ -291,6 +312,10 @@ namespace VassasCo.Utility.Internals
                 node.FixedWidth = fluent.Width;
             if (fluent.Converter != null)
                 node.Converter = fluent.Converter;
+            if (fluent.AsImage)
+                node.AsImage = true;
+            if (fluent.Image != null)
+                node.Image = fluent.Image;
 
             foreach (var rule in fluent.Rules)
             {
@@ -307,7 +332,8 @@ namespace VassasCo.Utility.Internals
             }
         }
 
-        private static Func<object, object?> CreateConverter(Type converterType, System.Reflection.PropertyInfo prop)
+        private static Func<object, object?> CreateConverter(
+            Type converterType, object?[]? args, System.Reflection.PropertyInfo prop)
         {
             if (!typeof(IExcelValueConverter).IsAssignableFrom(converterType))
             {
@@ -318,12 +344,17 @@ namespace VassasCo.Utility.Internals
             IExcelValueConverter instance;
             try
             {
-                instance = (IExcelValueConverter)Activator.CreateInstance(converterType)!;
+                instance = args == null
+                    ? (IExcelValueConverter)Activator.CreateInstance(converterType)!
+                    : (IExcelValueConverter)Activator.CreateInstance(converterType, args)!;
             }
-            catch (Exception ex) when (ex is MissingMethodException or MemberAccessException)
+            catch (Exception ex) when (ex is MissingMemberException or MemberAccessException)
             {
+                string requirement = args == null
+                    ? "必须提供公共无参构造函数"
+                    : $"没有能接收给定 {args.Length} 个实参的公共构造函数（实参个数或类型不匹配）";
                 throw new ExcelMappingException(
-                    $"转换器 {converterType.Name} 必须提供公共无参构造函数。", ex);
+                    $"属性 {prop.DeclaringType?.Name}.{prop.Name} 的转换器 {converterType.Name} {requirement}。", ex);
             }
 
             return instance.Convert;

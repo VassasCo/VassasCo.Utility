@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net472;netstandard2.0;net6.0;net8.0</TargetFrameworks>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -10,13 +10,15 @@
     <AssemblyName>VassasCo.Utility.ExcelMapper</AssemblyName>
 
     <PackageId>VassasCo.Utility.ExcelMapper</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.2.0</Version>
     <Authors>VassasCo</Authors>
     <Description>
       原生对象到 Excel/CSV 的映射引擎（桌面/服务端通用，无需 COM/VSTO）。
       特性：侵入式特性与非侵入式 Fluent 双配置模式、嵌套类多层合并表头、集合子Sheet/摊平/占位/JSON 四种渲染、
       分页多Sheet/多文件、异步写入（取消/进度）、ClosedXML DOM 与 OpenXML 流式双引擎、
-      条件格式表达式、长数字自动转文本、安全 CSV（RFC4180/BOM/公式注入防护）、Excel/CSV 安全导入。
+      条件格式表达式、长数字自动转文本、安全 CSV（RFC4180/BOM/公式注入防护）、Excel/CSV 安全导入、
+      报表布局：跨列标题、表前/表后自由排版行与单元格合并、工作表级字体，
+      值转换器：Fluent lambda 与可带构造器实参的特性转换器，内含判定文案、脱敏、空值占位。
     </Description>
     <PackageTags>excel;xlsx;csv;mapper;export;import;closedxml;openxml</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -34,15 +36,26 @@
     <None Include="VassasCoIcon.png" Pack="True" PackagePath="\" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <!-- net472 与 netstandard2.0 走同一组版本：
+       ClosedXML 0.102.3 / OpenXml 2.19.0 自带 net46 原生资产，
+       net472 可直接命中，避免回落到 netstandard2.0 资产而拖入 System.Memory 等一长串传递依赖。
+       新版（0.105.0 / 3.1.1）仅面向 net6+，留给 net6.0 / net8.0 目标。 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="ClosedXML" Version="0.102.3" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.19.0" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0' or '$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

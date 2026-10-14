@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net472;netstandard2.0;net6.0;net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -12,7 +12,7 @@
     <AssemblyName>VassasCo.Utility.ConfigHelper</AssemblyName>
 
     <PackageId>VassasCo.Utility.ConfigHelper</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <Authors>VassasCo</Authors>
     <Description>
       零代码实体类与 JSON/XML 配置文件双向映射工具（全自定义读写，读写严格一致）。
@@ -24,17 +24,27 @@
     <PackageProjectUrl>https://github.com/vassasco/VassasCo.Utility</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vassasco/VassasCo.Utility</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageIcon>VassasCoIcon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <!-- net472 / netstandard2.0 的 BCL 不含 System.Text.Json，需显式引用；
+       net6+ 内置于运行时，无需引用。 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Text.Json" Version="8.0.4" />
   </ItemGroup>
 
+  <!-- 让任意机器（含未安装 VS / 目标包的 CI）都能构建 net472：
+       PrivateAssets=all 确保该包不会作为依赖传递给使用方。 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="..\..\build\IsExternalInit.cs" Link="IsExternalInit.cs" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+    <Compile Include="..\..\build\IsExternalInit.cs" Link="IsExternalInit.cs" Condition="'$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
 
   <ItemGroup>

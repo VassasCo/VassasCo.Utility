@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -92,6 +93,12 @@ namespace VassasCo.Utility.Internals
 
         /// <summary>作为超链接</summary>
         public bool AsHyperlink;
+
+        /// <summary>叶子是否作为图片插入（属性值可为文件路径、byte[] 或 Stream）</summary>
+        public bool AsImage;
+
+        /// <summary>图片插入选项（<see cref="AsImage"/> 为 true 时生效）</summary>
+        public ExcelImageOptions? Image;
 
         /// <summary>叶子条件规则</summary>
         public List<ConditionalRule> Rules = new List<ConditionalRule>();
@@ -203,6 +210,105 @@ namespace VassasCo.Utility.Internals
 
         /// <summary>子 Sheet 父关联列标题</summary>
         public string? ParentColumnName;
+
+        /// <summary>固定位置图片（Logo / 水印 / 说明图），行数据写完后再统一插入</summary>
+        public List<PicturePlan> Pictures = new List<PicturePlan>();
+
+        /// <summary>表头之上的自由排版行（标题、元信息键值表等）</summary>
+        public List<ReportRow> Preamble = new List<ReportRow>();
+
+        /// <summary>数据区之下的自由排版行（汇总、备注、签名栏等）</summary>
+        public List<ReportRow> Postamble = new List<ReportRow>();
+
+        /// <summary>是否存在位于数据表之外的布局行</summary>
+        public bool HasLayoutRows => Preamble.Count > 0 || Postamble.Count > 0;
+    }
+
+    /// <summary>
+    /// 一张待插入图片的计划：来源（文件路径或字节）+ 锚定单元格 + 插入选项。
+    /// </summary>
+    /// <remarks>
+    /// 由两种途径产生：
+    /// <list type="number">
+    /// <item>数据列：实体属性标注 <c>[ExcelImage]</c> 或 Fluent <c>AsImage()</c>，引擎按行逐条生成；</item>
+    /// <item>固定图片：通过 <c>ExcelMapperBuilder.WithPicture(...)</c> 显式添加。</item>
+    /// </list>
+    /// </remarks>
+    internal sealed class PicturePlan
+    {
+        /// <summary>图片文件全路径（相对路径会结合 BaseDirectory 解析）</summary>
+        public string? FilePath;
+
+        /// <summary>图片字节内容；不为 null 时优先于 FilePath</summary>
+        public byte[]? Bytes;
+
+        /// <summary>锚定行号（Excel 行号，1 起）</summary>
+        public int Row = 1;
+
+        /// <summary>锚定列号（Excel 列号，1 起）</summary>
+        public int Column = 1;
+
+        /// <summary>插入选项</summary>
+        public ExcelImageOptions Options = new ExcelImageOptions();
+
+        /// <summary>图片名称（同一 Sheet 内需唯一）；为空时由引擎自动生成</summary>
+        public string? Name;
+
+        /// <summary>
+        /// 解析出图片字节内容。优先级：Bytes &gt; FilePath。
+        /// 文件不存在、路径非法、字节为空时返回 null（表示"缺失"），由调用方按 OnMissing 策略处理。
+        /// </summary>
+        public byte[]? ResolveBytes()
+        {
+            if (Bytes != null && Bytes.Length > 0)
+                return Bytes;
+
+            if (string.IsNullOrWhiteSpace(FilePath))
+                return null;
+
+            try
+            {
+                string path = ResolvePath(FilePath!, Options?.BaseDirectory);
+                if (!File.Exists(path))
+                    return null;
+
+                byte[] data = File.ReadAllBytes(path);
+                return data.Length == 0 ? null : data;
+            }
+            catch (Exception ex) when (
+                ex is IOException || ex is UnauthorizedAccessException ||
+                ex is ArgumentException || ex is NotSupportedException ||
+                ex is System.Security.SecurityException)
+            {
+                // 路径非法 / 无权限 / 设备未就绪等：统一按"缺失"处理，避免单次异常中断整个导出
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 将可能是相对路径的图片地址解析为全路径。
+        /// 基准目录顺序：BaseDirectory（显式指定） → 程序所在目录（AppContext.BaseDirectory）。
+        /// </summary>
+        private static string ResolvePath(string path, string? baseDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+
+            if (Path.IsPathRooted(path))
+                return path;
+
+            // 说明：netstandard2.0 / net472 的参考程序集未给 string.IsNullOrWhiteSpace 标注
+            // [NotNullWhen(false)]，编译器无法自动收窄空值，这里显式合并空值以消除告警。
+            string baseDir = baseDirectory ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(baseDir))
+            {
+                // AppContext.BaseDirectory 在 netstandard2.0 上可用；
+                // 用它而非 Environment.CurrentDirectory，可避免工作目录被 OpenFileDialog 等改动后找不到图片。
+                baseDir = AppContext.BaseDirectory ?? string.Empty;
+            }
+
+            return string.IsNullOrEmpty(baseDir) ? path : Path.Combine(baseDir, path);
+        }
     }
 
     /// <summary>文档中的一个 Sheet 部件（计划 + 行级规则）</summary>

@@ -60,6 +60,13 @@ namespace VassasCo.Utility.Internals
                 }
             }
 
+            if (sheet.HasLayoutRows && options.Engine == ExportEngineKind.OpenXmlStreaming)
+            {
+                errors.Add(
+                    "布局行（表前区/表后区）依赖随机写入与单元格合并，仅 ClosedXML DOM 引擎支持；" +
+                    "请将 Engine 改为 ClosedXml 或 Auto，否则这些行不会出现在导出结果中。");
+            }
+
             if (options.PageSize.HasValue && (options.PageSize.Value <= 0 ||
                 options.PageSize.Value > ExcelLimits.MaxRows))
             {

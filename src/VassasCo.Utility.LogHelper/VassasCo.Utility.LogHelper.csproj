@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net472;netstandard2.0;net6.0;net8.0</TargetFrameworks>
     <LangVersion>12.0</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -10,7 +10,7 @@
     <AssemblyName>VassasCo.Utility.LogHelper</AssemblyName>
 
     <PackageId>VassasCo.Utility.LogHelper</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <Authors>VassasCo</Authors>
     <Description>
       轻量级异步文件日志库（桌面/服务端通用，零外部依赖）。

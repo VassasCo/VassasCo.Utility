@@ -325,12 +325,17 @@ namespace VassasCo.Utility.ConfigHelper
 
             var tmpPath = _filePath + ".tmp";
             File.WriteAllText(tmpPath, content, new UTF8Encoding(false));
-#if NETSTANDARD2_0
-            if (File.Exists(_filePath)) File.Delete(_filePath);
-            File.Move(tmpPath, _filePath);
-#else
-            File.Move(tmpPath, _filePath, overwrite: true);
-#endif
+
+            // 原子保存：先把完整内容写入 .tmp，再一次性替换目标文件。
+            // File.Replace 在 net472 / netstandard2.0 / net6+ 上均可用，替换过程原子，
+            // 且替换成功后源 .tmp 会被自动移除，无需手工清理。
+            // 注意：net472（.NET Framework）的 File.Move 没有 overwrite 重载，
+            // 因此不能用 File.Move(..., overwrite: true)，也不能用"先删除再移动"
+            // ——后者在两步之间被中断会导致配置文件直接丢失。
+            if (File.Exists(_filePath))
+                File.Replace(tmpPath, _filePath, null);
+            else
+                File.Move(tmpPath, _filePath);
         }
 
         private T DeserializeFromFile(out HashSet<string> present)

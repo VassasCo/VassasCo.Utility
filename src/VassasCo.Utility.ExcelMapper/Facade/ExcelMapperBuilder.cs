@@ -26,6 +26,10 @@ namespace VassasCo.Utility
         private ExcelExportOptions _options = new ExcelExportOptions();
         private EntityMap<T>? _map;
         private readonly List<AdditionalSheet> _additional = new List<AdditionalSheet>();
+        private readonly List<PicturePlan> _pictures = new List<PicturePlan>();
+        private readonly List<ReportRow> _preamble = new List<ReportRow>();
+        private readonly List<ReportRow> _postamble = new List<ReportRow>();
+        private ReportRow? _title;
 
         internal ExcelMapperBuilder(IEnumerable<T> data)
         {
@@ -106,6 +110,83 @@ namespace VassasCo.Utility
             return this;
         }
 
+        /// <summary>
+        /// 在主工作表上插入一张固定位置的图片（如公司 Logo、水印、说明性插图）。
+        /// 可多次调用以插入多张图片。
+        /// </summary>
+        /// <param name="configure">图片配置：来源（文件/字节）+ 锚定位置 + 尺寸</param>
+        /// <remarks>
+        /// 与"图片列"的区别：图片列是<b>每行一张</b>（数据驱动），
+        /// 本方法是<b>整表固定</b>的一张图。图片写入依赖 DOM 引擎，
+        /// 强制使用流式引擎时图片会被跳过（见 <see cref="ExcelExportOptions.Engine"/>）。
+        /// </remarks>
+        public ExcelMapperBuilder<T> WithPicture(Action<PictureBuilder> configure)
+        {
+            if (configure is null) throw new ArgumentNullException(nameof(configure));
+
+            var builder = new PictureBuilder();
+            configure(builder);
+            _pictures.Add(builder.Build());
+            return this;
+        }
+
+        /// <summary>
+        /// 在表前区顶部插入一个跨列贯通的大号标题，位于任何 <see cref="WithPreamble"/> 声明的行之前。
+        /// 重复调用时以最后一次为准。
+        /// </summary>
+        /// <param name="text">标题文本</param>
+        /// <param name="fontSize">标题字号（磅）</param>
+        /// <param name="mergeAcross">是否横向合并整表宽度；false 时标题只占首列</param>
+        public ExcelMapperBuilder<T> WithTitle(string text, double fontSize = 18, bool mergeAcross = true)
+        {
+            var row = new ReportRow
+            {
+                Cells =
+                {
+                    new ReportCell
+                    {
+                        Text = text,
+                        ColumnSpan = mergeAcross ? 0 : 1,
+                        FontSize = fontSize,
+                        Bold = true,
+                        Align = CellAlign.Center
+                    }
+                }
+            };
+
+            _title = row;
+            return this;
+        }
+
+        /// <summary>
+        /// 在表头之上追加自由排版行（如单据编号、制表日期、负责人等元信息）。
+        /// 可多次调用，按调用顺序依次排列；单元格的 <see cref="ReportCell.ColumnSpan"/> 支持横向合并。
+        /// </summary>
+        /// <param name="configure">行构建器配置</param>
+        public ExcelMapperBuilder<T> WithPreamble(Action<ReportRowBuilder> configure)
+        {
+            if (configure is null) throw new ArgumentNullException(nameof(configure));
+
+            var builder = new ReportRowBuilder();
+            configure(builder);
+            _preamble.AddRange(builder.Build());
+            return this;
+        }
+
+        /// <summary>
+        /// 在数据区之下追加自由排版行（如合计、备注、审核签名栏）。可多次调用，按调用顺序依次排列。
+        /// </summary>
+        /// <param name="configure">行构建器配置</param>
+        public ExcelMapperBuilder<T> WithPostamble(Action<ReportRowBuilder> configure)
+        {
+            if (configure is null) throw new ArgumentNullException(nameof(configure));
+
+            var builder = new ReportRowBuilder();
+            configure(builder);
+            _postamble.AddRange(builder.Build());
+            return this;
+        }
+
         #region Sync Output
 
         /// <summary>导出到文件（自动校验路径、按需创建目录），返回导出诊断信息</summary>
@@ -123,7 +204,9 @@ namespace VassasCo.Utility
             }
 
             var sw = Stopwatch.StartNew();
-            IExcelExportEngine engine = EngineFactory.Create(_options, EngineFactory.TryGetCount(document));
+            IExcelExportEngine engine = EngineFactory.Create(
+                _options, EngineFactory.TryGetCount(document), EngineFactory.HasPictures(document),
+                EngineFactory.HasLayout(document));
             var stats = engine.Export(document, fullPath, null, _style, _options, cancellationToken, progress);
             sw.Stop();
 
@@ -175,6 +258,17 @@ namespace VassasCo.Utility
         private ExportDocument BuildDocument()
         {
             var document = PlanBuilder.BuildDocument(_data, _sheetName, _map, _options);
+
+            if (_title != null)
+                document.Primary.Sheet.Preamble.Add(_title);
+
+            document.Primary.Sheet.Preamble.AddRange(_preamble);
+            document.Primary.Sheet.Postamble.AddRange(_postamble);
+
+            // 固定位置图片（Logo/水印）挂到主 Sheet，行数据写完后再由引擎统一插入
+            if (_pictures.Count > 0)
+                document.Primary.Sheet.Pictures.AddRange(_pictures);
+
             foreach (var extra in _additional)
             {
                 var part = extra.BuildPart(extra.Rows, extra.Name, extra.Map, _options);
@@ -267,7 +361,13 @@ namespace VassasCo.Utility
                     primaryPart.Sheet.Columns = document.Primary.Sheet.Columns;
                     foreach (var rowRule in document.Primary.RowRules)
                         primaryPart.RowRules.Add(rowRule);
+                    primaryPart.Sheet.Preamble.AddRange(document.Primary.Sheet.Preamble);
+                    primaryPart.Sheet.Postamble.AddRange(document.Primary.Sheet.Postamble);
                     pageDoc.Primary = primaryPart;
+
+                    // 固定位置图片在每个分页工作簿上都插入一份
+                    if (_pictures.Count > 0)
+                        pageDoc.Primary.Sheet.Pictures.AddRange(_pictures);
 
                     foreach (var aligned in extraEnumerators)
                     {
@@ -284,7 +384,9 @@ namespace VassasCo.Utility
 
                     PlanValidator.Validate(pageDoc, _options);
 
-                    IExcelExportEngine engine = EngineFactory.Create(_options, knownRows: null);
+                    IExcelExportEngine engine = EngineFactory.Create(
+                        _options, knownRows: null, hasPictures: _pictures.Count > 0,
+                        hasLayoutRows: pageDoc.Primary.Sheet.HasLayoutRows);
                     engineKind = engine.Kind;
                     string pageFile = Path.Combine(dir ?? string.Empty, baseFileName + "_" + pageNo + ext);
                     var stats = engine.Export(pageDoc, pageFile, null, _style, _options, cancellationToken, null);

@@ -64,5 +64,14 @@ namespace VassasCo.Utility
 
         /// <summary>默认样式</summary>
         public static ExcelStyle Default => new ExcelStyle();
+
+        /// <summary>工作表默认字体名称（如"等线"、"微软雅黑"）；null 沿用生成库的默认字体。</summary>
+        public string? FontName { get; set; }
+
+        /// <summary>数据区默认字号（磅）；null 沿用生成库默认字号</summary>
+        public double? FontSize { get; set; }
+
+        /// <summary>表头字号（磅）；null 沿用生成库默认字号</summary>
+        public double? HeaderFontSize { get; set; }
     }
 }

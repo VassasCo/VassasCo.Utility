@@ -70,6 +70,52 @@ namespace VassasCo.Utility
         public bool AsHyperlink { get; set; }
     }
 
+    /// <summary>
+    /// 图片列配置（侵入式）：标注后该属性的值被当作图片来源插入单元格，
+    /// 支持文件路径（string）、字节数组（byte[]）、流（Stream）三种来源。
+    /// </summary>
+    /// <remarks>
+    /// 该特性与 <c>[ExcelColumn]</c> 可叠加使用：<c>[ExcelColumn]</c> 控制列名/顺序，
+    /// <c>[ExcelImage]</c> 控制图片尺寸与兜底。
+    /// 图片写入依赖 DOM 引擎（ClosedXML），使用流式引擎时会自动降级（见 <see cref="ExcelExportOptions.Engine"/>）。
+    /// </remarks>
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+    public sealed class ExcelImageAttribute : Attribute
+    {
+        /// <summary>显示宽度（像素）；&lt;=0 时使用图片原始宽度</summary>
+        public double Width { get; set; }
+
+        /// <summary>显示高度（像素）；&lt;=0 时使用图片原始高度</summary>
+        public double Height { get; set; }
+
+        /// <summary>尺寸自适应模式，默认 <see cref="ImageSizeMode.Original"/></summary>
+        public ImageSizeMode SizeMode { get; set; } = ImageSizeMode.Original;
+
+        /// <summary>定位方式，默认 <see cref="ImagePlacement.Cell"/></summary>
+        public ImagePlacement Placement { get; set; } = ImagePlacement.Cell;
+
+        /// <summary>图片缺失时的处理策略，默认 <see cref="MissingImagePolicy.Skip"/></summary>
+        public MissingImagePolicy OnMissing { get; set; } = MissingImagePolicy.Skip;
+
+        /// <summary>是否自动调高行高以容纳图片，默认 true</summary>
+        public bool AdjustRowHeight { get; set; } = true;
+
+        /// <summary>是否自动加宽列宽以容纳图片，默认 true</summary>
+        public bool AdjustColumnWidth { get; set; } = true;
+
+        /// <summary>行高的额外留白（像素），默认 4</summary>
+        public double RowPadding { get; set; } = 4;
+
+        /// <summary>图片名称（同一 Sheet 内需唯一）；为空时自动生成</summary>
+        public string? Name { get; set; }
+
+        /// <summary>
+        /// 相对路径的基准目录；为 null 时使用程序所在目录。
+        /// 用于避免"相对路径以当前工作目录为基准"导致的运行时找不到图片。
+        /// </summary>
+        public string? BaseDirectory { get; set; }
+    }
+
     /// <summary>条件格式规则（侵入式）：标注在数值属性上，可多次标注；如"大于 60 显示红色"</summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
     public sealed class ConditionalFormatAttribute : Attribute
@@ -101,17 +147,25 @@ namespace VassasCo.Utility
         }
     }
 
-    /// <summary>使用自定义值转换器（侵入式）：转换器必须实现 <see cref="IExcelValueConverter"/> 且有无参构造函数</summary>
+    /// <summary>
+    /// 使用自定义值转换器（侵入式）：转换器必须实现 <see cref="IExcelValueConverter"/>。
+    /// 不传构造器参数时要求转换器具备公共无参构造函数。
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class ExcelConverterAttribute : Attribute
     {
         /// <summary>转换器类型</summary>
         public Type ConverterType { get; }
 
+        /// <summary>构造转换器时使用的实参；为 null 时以无参构造函数创建</summary>
+        public object?[]? Args { get; }
+
         /// <param name="converterType">实现 <see cref="IExcelValueConverter"/> 的类型</param>
-        public ExcelConverterAttribute(Type converterType)
+        /// <param name="args">构造转换器时传入的实参，用于复用同一个参数化转换器产生不同输出</param>
+        public ExcelConverterAttribute(Type converterType, params object?[] args)
         {
             ConverterType = converterType;
+            Args = args is { Length: > 0 } ? args : null;
         }
     }
 

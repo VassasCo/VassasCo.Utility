@@ -52,11 +52,16 @@
 
 | 目标框架 | 依赖 |
 |----------|------|
+| net472 | System.Text.Json 8.0.4 |
 | netstandard2.0 | System.Text.Json 8.0.4 |
 | net6.0 | 无（仅 BCL） |
 | net8.0 | 无（仅 BCL） |
 | net9.0 | 无（仅 BCL） |
 | net10.0 | 无（仅 BCL） |
+
+> 新增 **net472**：供 .NET Framework 4.7.2+（含 4.8）传统桌面项目直接引用。
+> System.Text.Json 官方包自带 net462 资产，net472 可直接命中，不会额外拖入
+> `System.Memory` / `System.Buffers` / `System.Threading.Tasks.Extensions` 等传递依赖。
 
 ---
 
@@ -650,6 +655,35 @@ dotnet test
 ```
 
 > 当前 ConfigHelper 未包含独立测试项目，随解决方案统一执行测试即可。
+
+---
+
+## 更新说明
+
+### 2.1.0（当前）
+
+**新增**
+
+- 新增 **`net472` 目标框架**，供 .NET Framework 4.7.2+（含 4.8）传统桌面项目（WinForms/WPF 上位机等）直接引用。
+  关键收益：net472 会命中 `System.Text.Json` 官方包的 net462 原生资产，**不再回落 netstandard2.0 资产**，
+  从而避免拖入 `System.Memory` / `System.Buffers` / `System.Threading.Tasks.Extensions` 等一长串传递依赖，
+  也省去在 `packages.config` 旧式项目里手写大量 binding redirect 的麻烦。
+  构建期通过 `Microsoft.NETFramework.ReferenceAssemblies`（`PrivateAssets=all`）提供目标包，**不会作为依赖传递给使用方**。
+
+**修复**
+
+- **保存配置文件在 .NET Framework 下无法编译**：原实现使用 `File.Move(tmp, target, overwrite: true)`，
+  该三参数重载**仅存在于 .NET Core 3.0+**，.NET Framework 的 `File.Move` 没有 `overwrite` 参数。
+  此问题此前因未添加 net472 目标而一直未被发现。
+  现改为 `File.Replace(tmp, target, null)`：
+  - 全目标框架（net472 / netstandard2.0 / net6+）均可用；
+  - 替换过程原子，且替换成功后源 `.tmp` 自动移除，无需手工清理；
+  - 顺带消除原 netstandard2.0 分支"先 `Delete` 再 `Move`"在两步之间被中断（断电/崩溃/强杀）会**直接丢失配置文件**的隐患。
+
+**兼容性**
+
+- 目标框架：`net472` / `netstandard2.0` / `net6.0` / `net8.0` / `net9.0` / `net10.0`
+- 本次未修改任何既有公开 API 签名，对现有调用方无破坏性变更。
 
 ---
 

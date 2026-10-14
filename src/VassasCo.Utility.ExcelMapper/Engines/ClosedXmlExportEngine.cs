@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using ClosedXML.Excel;
+using ClosedXML.Excel.Drawings;
 
 namespace VassasCo.Utility.Internals
 {
@@ -115,11 +116,19 @@ namespace VassasCo.Utility.Internals
 
             if (pageIndex == 0)
             {
-                // 空数据：仅表头
+                // 空数据：布局区 + 仅表头
                 var emptySheet = _workbook.AddWorksheet(_names.Register(baseName));
-                WriteMergedHeaders(emptySheet, part.Sheet.Columns, leaves, headerDepth);
-                ApplyColumnSettings(emptySheet, leaves, 1, 0);
-                ApplyFreeze(emptySheet, headerDepth);
+                ApplySheetStyle(emptySheet);
+
+                int preambleRows = WriteLayoutRows(emptySheet, part.Sheet.Preamble, leaves.Count, 1);
+                int headerTop = preambleRows + 1;
+
+                WriteMergedHeaders(emptySheet, part.Sheet.Columns, leaves, headerDepth, headerTop);
+                ApplyColumnSettings(emptySheet, leaves, headerTop + headerDepth, headerTop + headerDepth - 1);
+                ApplyFreeze(emptySheet, headerTop - 1 + headerDepth);
+
+                if (part.Sheet.Postamble.Count > 0)
+                    WriteLayoutRows(emptySheet, part.Sheet.Postamble, leaves.Count, headerTop + headerDepth);
             }
 
             FlushChildBuckets(buckets);
@@ -139,9 +148,14 @@ namespace VassasCo.Utility.Internals
             ColumnPlan? flattenLeaf)
         {
             var sheet = _workbook.AddWorksheet(_names.Register(sheetName));
-            WriteMergedHeaders(sheet, part.Sheet.Columns, leaves, headerDepth);
+            ApplySheetStyle(sheet);
 
-            int dataStart = headerDepth + 1;
+            int preambleRows = WriteLayoutRows(sheet, part.Sheet.Preamble, leaves.Count, 1);
+            int headerTop = preambleRows + 1;
+
+            WriteMergedHeaders(sheet, part.Sheet.Columns, leaves, headerDepth, headerTop);
+
+            int dataStart = headerTop + headerDepth;
 
             var writableRows = new List<object[]>(sourceRows.Count);
             var sourceInfos = new List<SourceRowInfo>(sourceRows.Count);
@@ -214,8 +228,13 @@ namespace VassasCo.Utility.Internals
             ApplyColumnSettings(sheet, leaves, dataStart, dataEnd);
             ApplyDataArea(sheet, dataStart, dataEnd, leaves.Count, headerDepth);
             ApplyHyperlinks(sheet, leaves, dataStart, sourceInfos);
+            ApplyPictures(sheet, part, leaves, dataStart, sourceInfos);
             ApplyConditionalRules(sheet, part, leaves, dataStart, dataEnd, sourceInfos);
-            ApplyFreeze(sheet, headerDepth);
+            ApplyFreeze(sheet, headerTop - 1 + headerDepth);
+
+            // 无数据行时 dataEnd 已停留在表头下一行，取 dataEnd + 1 即可让表后区紧接表头
+            if (part.Sheet.Postamble.Count > 0)
+                WriteLayoutRows(sheet, part.Sheet.Postamble, leaves.Count, dataEnd + 1);
 
             AdvanceProgress(writableRows.Count);
         }
@@ -236,6 +255,13 @@ namespace VassasCo.Utility.Internals
                 }
 
                 if (value is null)
+                {
+                    row[i] = "";
+                    continue;
+                }
+
+                // 图片列：值交给 ApplyPictures 渲染成嵌入式图片，单元格本身保持空白
+                if (leaf.AsImage)
                 {
                     row[i] = "";
                     continue;
@@ -420,11 +446,16 @@ namespace VassasCo.Utility.Internals
 
         #region Headers
 
+        /// <summary>
+        /// 写入多层表头。表头整体位于 <paramref name="startRow"/> 起的行内，
+        /// 该值大于 1 表示表头之上还有布局行（标题/元信息），此时表头随之下移。
+        /// </summary>
         private void WriteMergedHeaders(
             IXLWorksheet sheet,
             List<ColumnPlan> roots,
             List<LeafColumnInfo> leaves,
-            int headerDepth)
+            int headerDepth,
+            int startRow = 1)
         {
             var headerCells = new List<(int Row, int StartCol, int EndCol, string Text, bool IsLeaf)>();
             int leafIdx = 0;
@@ -433,28 +464,29 @@ namespace VassasCo.Utility.Internals
 
             foreach (var hc in headerCells)
             {
-                int excelRow = hc.Row + 1;
+                int excelRow = hc.Row + startRow;
                 var cell = sheet.Cell(excelRow, hc.StartCol + 1);
                 cell.Value = hc.Text;
 
                 if (hc.StartCol != hc.EndCol)
                     sheet.Range(excelRow, hc.StartCol + 1, excelRow, hc.EndCol + 1).Merge();
 
-                if (hc.IsLeaf && headerDepth > excelRow)
-                    sheet.Range(excelRow, hc.StartCol + 1, headerDepth, hc.EndCol + 1).Merge();
+                int lastHeaderRow = startRow + headerDepth - 1;
+                if (hc.IsLeaf && lastHeaderRow > excelRow)
+                    sheet.Range(excelRow, hc.StartCol + 1, lastHeaderRow, hc.EndCol + 1).Merge();
 
                 ApplyHeaderStyle(cell);
             }
 
             if (_style.HeaderHeight.HasValue)
             {
-                for (int r = 1; r <= headerDepth; r++)
+                for (int r = startRow; r < startRow + headerDepth; r++)
                     sheet.Row(r).Height = _style.HeaderHeight.Value;
             }
 
             if (_style.ShowBorder && leaves.Count > 0)
             {
-                var headerRange = sheet.Range(1, 1, headerDepth, leaves.Count);
+                var headerRange = sheet.Range(startRow, 1, startRow + headerDepth - 1, leaves.Count);
                 ApplyBorderToRange(headerRange);
             }
         }
@@ -481,12 +513,104 @@ namespace VassasCo.Utility.Internals
 
         #endregion
 
+        #region Layout Rows
+
+        /// <summary>
+        /// 写入位于数据表之外的自由排版行（表前区/表后区），返回实际占用的行数。
+        /// </summary>
+        /// <remarks>
+        /// 单元格按声明顺序从左到右排布；<see cref="ReportCell.ColumnSpan"/> 小于等于 0 时跨满整表，
+        /// 超出剩余列数的合并范围会被收敛到表格边界，避免越写到数据列之外。
+        /// </remarks>
+        private int WriteLayoutRows(
+            IXLWorksheet sheet,
+            List<ReportRow> rows,
+            int columnCount,
+            int startRow)
+        {
+            if (rows.Count == 0 || columnCount == 0)
+                return 0;
+
+            int excelRow = startRow;
+            foreach (var row in rows)
+            {
+                int col = 1;
+                foreach (var cell in row.Cells)
+                {
+                    if (col > columnCount)
+                        break;
+
+                    int span = cell.ColumnSpan <= 0
+                        ? columnCount - col + 1
+                        : Math.Min(cell.ColumnSpan, columnCount - col + 1);
+
+                    var target = sheet.Cell(excelRow, col);
+                    target.Value = cell.Text ?? string.Empty;
+                    ApplyLayoutCellStyle(target, cell);
+
+                    if (span > 1)
+                        sheet.Range(excelRow, col, excelRow, col + span - 1).Merge();
+
+                    col += span;
+                }
+                excelRow++;
+            }
+
+            if (_style.ShowBorder)
+                ApplyBorderToRange(sheet.Range(startRow, 1, excelRow - 1, columnCount));
+
+            return rows.Count;
+        }
+
+        private void ApplyLayoutCellStyle(IXLCell target, ReportCell cell)
+        {
+            if (cell.Bold)
+                target.Style.Font.Bold = true;
+
+            if (cell.FontSize.HasValue)
+                target.Style.Font.FontSize = cell.FontSize.Value;
+
+            SafeSetColor(c => target.Style.Font.FontColor = c, cell.FontColor);
+            SafeSetColor(c => target.Style.Fill.BackgroundColor = c, cell.FillColor);
+
+            switch (cell.Align)
+            {
+                case CellAlign.Left:
+                    target.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+                    break;
+                case CellAlign.Center:
+                    target.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    break;
+                case CellAlign.Right:
+                    target.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                    break;
+            }
+
+            if (cell.Align != CellAlign.Default)
+                target.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+
+        /// <summary>应用工作表级默认字体（表级新设的单元格样式可覆盖）</summary>
+        private void ApplySheetStyle(IXLWorksheet sheet)
+        {
+            if (!string.IsNullOrEmpty(_style.FontName))
+                sheet.Style.Font.FontName = _style.FontName;
+
+            if (_style.FontSize.HasValue)
+                sheet.Style.Font.FontSize = _style.FontSize.Value;
+        }
+
+        #endregion
+
         #region Styling
 
         private void ApplyHeaderStyle(IXLCell cell)
         {
             if (_style.HeaderBold)
                 cell.Style.Font.Bold = true;
+
+            if (_style.HeaderFontSize.HasValue)
+                cell.Style.Font.FontSize = _style.HeaderFontSize.Value;
 
             SafeSetColor(c => cell.Style.Fill.BackgroundColor = c, _style.HeaderBackgroundColor);
             SafeSetColor(c => cell.Style.Font.FontColor = c, _style.HeaderFontColor);
@@ -639,6 +763,250 @@ namespace VassasCo.Utility.Internals
             int cols = _style.FreezeFirstColumn ? 1 : 0;
             if (rows > 0 || cols > 0)
                 sheet.SheetView.Freeze(rows, cols);
+        }
+
+        #endregion
+
+        #region Pictures
+
+        /// <summary>
+        /// 写入图片：先处理固定位置图片（Logo/水印），再按行处理被标记为图片的列。
+        /// </summary>
+        /// <remarks>
+        /// 必须在 InsertData 之后调用，否则行高/列宽的自适应拿不到最终布局。
+        /// 图片写入只在 DOM 引擎（ClosedXML）下可用，流式引擎由 EngineFactory 自动降级。
+        /// </remarks>
+        private void ApplyPictures(
+            IXLWorksheet sheet,
+            DocumentPart part,
+            List<LeafColumnInfo> leaves,
+            int dataStart,
+            List<SourceRowInfo> sourceInfos)
+        {
+            // 1) 固定位置图片
+            if (part.Sheet.Pictures.Count > 0)
+            {
+                foreach (var pic in part.Sheet.Pictures)
+                {
+                    if (pic is null) continue;
+                    _ct.ThrowIfCancellationRequested();
+                    // 名称需在同一 Sheet 内唯一，加前缀避免与图片列生成的名字撞车
+                    InsertOnePicture(sheet, pic.ResolveBytes(), pic.Row, pic.Column,
+                        pic.Options,
+                        pic.Name ?? ("fixed_pic_" + pic.Row + "_" + pic.Column),
+                        pic.FilePath);
+                }
+            }
+
+            // 2) 图片列：每个数据行一张
+            var imageCols = leaves
+                .Select((l, i) => (Leaf: l.Column, Col: i + 1))
+                .Where(x => x.Leaf.AsImage)
+                .ToList();
+            if (imageCols.Count == 0)
+                return;
+
+            foreach (var info in sourceInfos)
+            {
+                for (int r = 0; r < info.Count; r++)
+                {
+                    _ct.ThrowIfCancellationRequested();
+                    int excelRow = info.FirstExcelRow + r;
+
+                    foreach (var col in imageCols)
+                    {
+                        object? raw = info.Raw[col.Leaf.LeafIndex];
+                        byte[]? bytes = ResolveValueBytes(raw, col.Leaf.Image);
+                        InsertOnePicture(sheet, bytes, excelRow, col.Col,
+                            col.Leaf.Image,
+                            "col_pic_" + excelRow + "_" + col.Col,
+                            raw as string);
+                    }
+                }
+            }
+        }
+
+        /// <summary>把一行图片列的值解析为图片字节；无法解析返回 null</summary>
+        private static byte[]? ResolveValueBytes(object? value, ExcelImageOptions? options)
+        {
+            switch (value)
+            {
+                case null:
+                    return null;
+
+                case byte[] bytes:
+                    return bytes.Length == 0 ? null : bytes;
+
+                case string path when path.Length > 0:
+                    string full = ResolveImagePath(path, options?.BaseDirectory);
+                    if (full.Length == 0 || !System.IO.File.Exists(full))
+                        return null;
+                    byte[] data;
+                    try { data = System.IO.File.ReadAllBytes(full); }
+                    catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException ||
+                                               ex is ArgumentException || ex is NotSupportedException)
+                    { return null; }
+                    return data.Length == 0 ? null : data;
+
+                case System.IO.Stream stream:
+                    try
+                    {
+                        using (var buffer = new System.IO.MemoryStream())
+                        {
+                            stream.CopyTo(buffer);
+                            return buffer.Length == 0 ? null : buffer.ToArray();
+                        }
+                    }
+                    catch (Exception ex) when (ex is System.IO.IOException || ex is NotSupportedException ||
+                                               ex is ObjectDisposedException)
+                    { return null; }
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// 把可能是相对路径的图片地址解析为全路径。
+        /// 基准目录优先级：显式 BaseDirectory → 程序所在目录（AppContext.BaseDirectory）。
+        /// </summary>
+        /// <remarks>
+        /// 刻意不使用 <see cref="Environment.CurrentDirectory"/>：当前工作目录会被
+        /// 快捷方式起始位置、OpenFileDialog/FolderBrowserDialog 等操作改动，
+        /// 是本项目此前 ".\res\green.png 找不到" 一类问题的根因。
+        /// </remarks>
+        private static string ResolveImagePath(string path, string? baseDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return string.Empty;
+
+            if (System.IO.Path.IsPathRooted(path))
+                return path;
+
+            // 说明：netstandard2.0 / net472 的参考程序集未给 string.IsNullOrWhiteSpace 标注
+            // [NotNullWhen(false)]，编译器无法自动收窄空值，这里显式合并空值以消除告警。
+            string baseDir = baseDirectory ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(baseDir))
+                baseDir = AppContext.BaseDirectory ?? string.Empty;
+
+            return string.IsNullOrEmpty(baseDir) ? path : System.IO.Path.Combine(baseDir, path);
+        }
+
+        /// <summary>插入单张图片到指定单元格</summary>
+        private void InsertOnePicture(
+            IXLWorksheet sheet,
+            byte[]? bytes,
+            int row,
+            int col,
+            ExcelImageOptions? options,
+            string? name,
+            string? sourceText)
+        {
+            var opt = options ?? ExcelImageOptions.Default;
+
+            if (bytes is null || bytes.Length == 0 ||
+                !ImageHeaderReader.TryParse(bytes, out var kind, out int srcW, out int srcH))
+            {
+                HandleMissingPicture(sheet, row, col, opt, sourceText);
+                return;
+            }
+
+            double width = opt.Width;
+            double height = opt.Height;
+
+            if (opt.SizeMode == ImageSizeMode.Fit && width > 0 && height > 0)
+            {
+                // 等比缩放：取较小的缩放比，保证图片完整放入且不变形
+                double scale = Math.Min(width / (double)srcW, height / (double)srcH);
+                width = srcW * scale;
+                height = srcH * scale;
+            }
+            else
+            {
+                if (width <= 0) width = srcW;
+                if (height <= 0) height = srcH;
+            }
+
+            try
+            {
+                using (var stream = new System.IO.MemoryStream(bytes, writable: false))
+                {
+                    var picture = sheet.AddPicture(
+                        stream,
+                        MapPictureFormat(kind),
+                        name ?? ("pic_" + row.ToString(CultureInfo.InvariantCulture) + "_" + col.ToString(CultureInfo.InvariantCulture)));
+
+                    picture.MoveTo(sheet.Cell(row, col));
+                    // ClosedXML 的 WithSize 以像素为单位且只接受整型，四舍五入避免累积误差
+                    picture.WithSize((int)Math.Round(width), (int)Math.Round(height));
+                    // MoveAndSize：随单元格移动并缩放，行高列宽变化时图片跟着变
+                    picture.Placement = opt.Placement == ImagePlacement.Floating
+                        ? XLPicturePlacement.FreeFloating
+                        : XLPicturePlacement.MoveAndSize;
+                }
+            }
+            catch (Exception ex) when (ex is System.IO.IOException || ex is ArgumentException ||
+                                       ex is NotSupportedException || ex is InvalidOperationException)
+            {
+                HandleMissingPicture(sheet, row, col, opt, sourceText);
+                return;
+            }
+
+            // Excel 不会因插入图片自动撑开单元格，不调整会盖住下方内容
+            if (opt.AdjustRowHeight)
+            {
+                double need = PixelsToPoints(height + opt.RowPadding);
+                if (sheet.Row(row).Height < need)
+                    sheet.Row(row).Height = need;
+            }
+
+            if (opt.AdjustColumnWidth)
+            {
+                double need = PixelsToColumnWidth(width);
+                if (sheet.Column(col).Width < need)
+                    sheet.Column(col).Width = need;
+            }
+        }
+
+        /// <summary>按 <see cref="MissingImagePolicy"/> 处理缺失图片</summary>
+        private static void HandleMissingPicture(
+            IXLWorksheet sheet, int row, int col, ExcelImageOptions opt, string? sourceText)
+        {
+            switch (opt.OnMissing)
+            {
+                case MissingImagePolicy.Throw:
+                    string detail = string.IsNullOrEmpty(sourceText) ? string.Empty : "（来源：" + sourceText + "）";
+                    throw new ExcelMappingException(
+                        $"插入图片失败：第 {row} 行第 {col} 列的图片缺失或格式不支持{detail}。");
+
+                case MissingImagePolicy.WriteSourceText:
+                    // 写回来源（通常是文件路径），让报表读者一眼看出"这张图本该是什么"
+                    sheet.Cell(row, col).Value = sourceText ?? string.Empty;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        /// <summary>像素 → 磅（Excel 行高单位）。96 DPI 下 1pt = 4/3 px</summary>
+        private static double PixelsToPoints(double pixels) => pixels * 0.75;
+
+        /// <summary>像素 → 字符宽度（Excel 列宽单位）。经验值：1 字符宽 ≈ 7 像素</summary>
+        private static double PixelsToColumnWidth(double pixels) => pixels / 7.0;
+
+        /// <summary>把内部图片格式映射到 ClosedXML 的图片格式枚举</summary>
+        private static XLPictureFormat MapPictureFormat(ImageFormatKind kind)
+        {
+            switch (kind)
+            {
+                case ImageFormatKind.Png: return XLPictureFormat.Png;
+                case ImageFormatKind.Jpeg: return XLPictureFormat.Jpeg;
+                case ImageFormatKind.Gif: return XLPictureFormat.Gif;
+                case ImageFormatKind.Bmp: return XLPictureFormat.Bmp;
+                case ImageFormatKind.Tiff: return XLPictureFormat.Tiff;
+                default: return XLPictureFormat.Unknown;
+            }
         }
 
         #endregion
