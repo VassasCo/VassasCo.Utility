@@ -26,7 +26,7 @@
 | 项目 | 说明 | 目标框架 | NuGet 版本 | 文档 |
 |------|------|----------|-----------|------|
 | **VassasCo.Utility.ConfigHelper** | 实体类与 JSON/XML 配置文件双向映射，自研解析器，读写严格对称 | net472 / netstandard2.0 / net6.0 / net8.0 / net9.0 / net10.0 | 2.1.0 | [README](src/VassasCo.Utility.ConfigHelper/README.md) |
-| **VassasCo.Utility.ExcelMapper** | Excel / CSV 导入导出，支持 ClosedXML 与 OpenXml 流式引擎，支持插入图片、报表布局与值转换器 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.2.0 | [README](src/VassasCo.Utility.ExcelMapper/README.md) |
+| **VassasCo.Utility.ExcelMapper** | Excel / CSV 导入导出，支持 ClosedXML 与 OpenXml 流式引擎，支持插入图片、报表布局与值转换器 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.3.0 | [README](src/VassasCo.Utility.ExcelMapper/README.md) |
 | **VassasCo.Utility.LogHelper** | 异步文件日志，分类分文件 + 按天分目录 + 自动清理 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.LogHelper/README.md) |
 | **VassasCo.Utility.EventBus** | 进程内事件总线，支持特性注册 / 优先级 / 多通道 / 粘性事件 / 线程封送 / 弱引用订阅 | net472 / netstandard2.0 / net6.0 / net8.0 / net9.0 / net10.0 | 2.0.0 | [README](src/VassasCo.Utility.EventBus/README.md) |
 | **VassasCo.Utility.CrashDumpHelper** | 崩溃捕获，FirstChance 异常链 + Windows MiniDump；自动接管未处理异常与未观察 Task 异常 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.CrashDumpHelper/README.md) |
@@ -107,7 +107,24 @@ dotnet test VassasCo.Utility.slnx
 
 ## 更新说明
 
-### 2.2.0（当前）
+### 2.3.0（当前）
+
+**问题修复**
+
+- **ExcelMapper 自适应列宽**：此前仅按数据区评估列宽，且依赖底层库的字体度量——该实现会
+  把 CJK 字符算成接近零宽，导致中文表头显示不全。现在同时评估表头行与数据区，
+  并按全角 2、半角 1 估算字宽，两个引擎统一。
+- **ExcelMapper `float` 精度噪声**：`float` 放大为 `double` 时会带出一长串无意义尾数
+  （`0.3351f` 写成 `0.335099995136261`），既难读又把列宽撑到 20 个字符以上。
+  现在按最短往返表示写入；`double` 保持原样。
+- **`NaN` / 无穷值写入失败**：数值单元格无法承载非有限数，底层会直接抛异常，
+  现统一降级为文本。
+
+**兼容性**
+
+- 仅修复渲染行为，公开 API 签名不变，可原地升级。
+
+### 2.2.0
 
 **功能增强**
 

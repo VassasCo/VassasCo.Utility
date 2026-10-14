@@ -124,7 +124,8 @@ namespace VassasCo.Utility.Internals
                 int headerTop = preambleRows + 1;
 
                 WriteMergedHeaders(emptySheet, part.Sheet.Columns, leaves, headerDepth, headerTop);
-                ApplyColumnSettings(emptySheet, leaves, headerTop + headerDepth, headerTop + headerDepth - 1);
+                ApplyColumnSettings(emptySheet, leaves, headerTop + headerDepth, headerTop + headerDepth - 1,
+                    headerTop + headerDepth - 1);
                 ApplyFreeze(emptySheet, headerTop - 1 + headerDepth);
 
                 if (part.Sheet.Postamble.Count > 0)
@@ -225,7 +226,7 @@ namespace VassasCo.Utility.Internals
             if (writableRows.Count > 0)
                 sheet.Cell(dataStart, 1).InsertData(writableRows);
 
-            ApplyColumnSettings(sheet, leaves, dataStart, dataEnd);
+            ApplyColumnSettings(sheet, leaves, dataStart, dataEnd, headerTop + headerDepth - 1);
             ApplyDataArea(sheet, dataStart, dataEnd, leaves.Count, headerDepth);
             ApplyHyperlinks(sheet, leaves, dataStart, sourceInfos);
             ApplyPictures(sheet, part, leaves, dataStart, sourceInfos);
@@ -430,7 +431,7 @@ namespace VassasCo.Utility.Internals
             // 列设置：父列文本格式 + 元素列
             sheet.Column(1).Style.NumberFormat.Format = "@";
             for (int i = 0; i < childLeaves.Count; i++)
-                ApplyOneColumnSetting(sheet, i + 2, childLeaves[i].Column, 2, dataEnd);
+                ApplyOneColumnSetting(sheet, i + 2, childLeaves[i].Column, 2, dataEnd, headerRow: 1);
 
             if (_style.ShowBorder)
             {
@@ -675,10 +676,11 @@ namespace VassasCo.Utility.Internals
             IXLWorksheet sheet,
             List<LeafColumnInfo> leaves,
             int dataStart,
-            int dataEnd)
+            int dataEnd,
+            int headerRow)
         {
             for (int i = 0; i < leaves.Count; i++)
-                ApplyOneColumnSetting(sheet, i + 1, leaves[i].Column, dataStart, dataEnd);
+                ApplyOneColumnSetting(sheet, i + 1, leaves[i].Column, dataStart, dataEnd, headerRow);
         }
 
         private void ApplyOneColumnSetting(
@@ -686,7 +688,8 @@ namespace VassasCo.Utility.Internals
             int colNumber,
             ColumnPlan leaf,
             int dataStart,
-            int dataEnd)
+            int dataEnd,
+            int headerRow)
         {
             var column = sheet.Column(colNumber);
 
@@ -711,14 +714,76 @@ namespace VassasCo.Utility.Internals
                 return;
             }
 
-            if (_style.AutoFitColumns && dataStart <= dataEnd)
+            if (_style.AutoFitColumns)
+                ApplyAutoFitWidth(sheet, colNumber, dataStart, dataEnd, headerRow);
+        }
+
+        /// <summary>
+        /// 自适应列宽：分别评估数据区与叶子表头行，取较宽的结果。
+        /// 表头文本（尤其是中文）常常比数据更宽，只按数据区评估会让表头显示不全；
+        /// 只取叶子表头行是为了避免跨列合并的上层表头把首列撑宽。
+        /// </summary>
+        private void ApplyAutoFitWidth(
+            IXLWorksheet sheet,
+            int colNumber,
+            int dataStart,
+            int dataEnd,
+            int headerRow)
+        {
+            // 以默认列宽为下限，内容为空时保持原样
+            double width = sheet.Column(colNumber).Width;
+
+            if (dataStart <= dataEnd)
             {
-                column.AdjustToContents(dataStart, dataEnd);
-                if (_style.MinColumnWidth.HasValue && column.Width < _style.MinColumnWidth.Value)
-                    column.Width = _style.MinColumnWidth.Value;
-                if (_style.MaxColumnWidth.HasValue && column.Width > _style.MaxColumnWidth.Value)
-                    column.Width = _style.MaxColumnWidth.Value;
+                double w = MeasureRangeWidth(sheet, colNumber, dataStart, dataEnd, _style.FontSize);
+                if (w > width)
+                    width = w;
             }
+
+            if (headerRow > 0)
+            {
+                double? headerSize = _style.HeaderFontSize ?? _style.FontSize;
+                double w = MeasureRangeWidth(sheet, colNumber, headerRow, headerRow, headerSize);
+                if (w > width)
+                    width = w;
+            }
+
+            if (_style.MinColumnWidth.HasValue && width < _style.MinColumnWidth.Value)
+                width = _style.MinColumnWidth.Value;
+            if (_style.MaxColumnWidth.HasValue && width > _style.MaxColumnWidth.Value)
+                width = _style.MaxColumnWidth.Value;
+
+            sheet.Column(colNumber).Width = width;
+        }
+
+        /// <summary>扫描一段行范围，返回其中所需的最大列宽</summary>
+        private static double MeasureRangeWidth(
+            IXLWorksheet sheet,
+            int colNumber,
+            int firstRow,
+            int lastRow,
+            double? fontSize)
+        {
+            int scanEnd = lastRow - firstRow + 1 > ColumnWidthEstimator.MaxScanRows
+                ? firstRow + ColumnWidthEstimator.MaxScanRows - 1
+                : lastRow;
+
+            double max = 0;
+
+            for (int row = firstRow; row <= scanEnd; row++)
+            {
+                var cell = sheet.Cell(row, colNumber);
+
+                // 跨列合并的文本由多列共同容纳，不能作为单列宽度的依据
+                if (cell.IsMerged())
+                    continue;
+
+                double w = ColumnWidthEstimator.ToColumnWidth(cell.Value.ToString(), fontSize);
+                if (w > max)
+                    max = w;
+            }
+
+            return max;
         }
 
         private void ApplyHyperlinks(

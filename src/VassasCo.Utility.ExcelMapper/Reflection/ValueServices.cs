@@ -65,6 +65,13 @@ namespace VassasCo.Utility.Internals
             if (value is null || value is string || value is char)
                 return true;
 
+            // 非有限数无法写入数值单元格（底层会直接抛异常），统一降级为文本
+            if (value is double d && (double.IsNaN(d) || double.IsInfinity(d)))
+                return true;
+
+            if (value is float f && (float.IsNaN(f) || float.IsInfinity(f)))
+                return true;
+
             if (value is bool || value is byte[] || value.GetType().IsEnum)
                 return true;
 
@@ -274,7 +281,37 @@ namespace VassasCo.Utility.Internals
         /// <summary>转 double（数字路径）；decimal/所有基元均可（char/bool 已被路由到文本，修复旧版 bool/char 变数字的 Bug）</summary>
         public static double ToDouble(object value)
         {
+            if (value is float single)
+                return FromSingle(single);
+
             return Convert.ToDouble(value, CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// float 转 double：取最短往返表示，避免精度噪声。
+        /// float 只有约 7 位有效精度，直接放大成 double 会带出一长串无意义的尾数
+        /// （0.3351f 会变成 0.335099995136261），既难读又会把自适应列宽撑到 20 个字符以上。
+        /// 这里从 7 位有效数字起向上试探，取第一个能还原为同一 float 的文本再转 double。
+        /// </summary>
+        private static double FromSingle(float value)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value))
+                return value;
+
+            for (int precision = 7; precision <= 9; precision++)
+            {
+                string text = value.ToString("G" + precision.ToString(CultureInfo.InvariantCulture),
+                    CultureInfo.InvariantCulture);
+
+                if (!float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out float roundTrip))
+                    continue;
+
+                if (roundTrip == value)
+                    return double.Parse(text, CultureInfo.InvariantCulture);
+            }
+
+            // 理论不可达：G9 对 float 保证往返。兜底保持原有行为，避免极端值写入失败。
+            return value;
         }
 
         /// <summary>尝试取 DateTime（含 DateTimeOffset）</summary>

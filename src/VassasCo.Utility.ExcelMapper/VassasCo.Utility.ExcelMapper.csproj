@@ -10,7 +10,7 @@
     <AssemblyName>VassasCo.Utility.ExcelMapper</AssemblyName>
 
     <PackageId>VassasCo.Utility.ExcelMapper</PackageId>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <Authors>VassasCo</Authors>
     <Description>
       原生对象到 Excel/CSV 的映射引擎（桌面/服务端通用，无需 COM/VSTO）。
@@ -18,7 +18,8 @@
       分页多Sheet/多文件、异步写入（取消/进度）、ClosedXML DOM 与 OpenXML 流式双引擎、
       条件格式表达式、长数字自动转文本、安全 CSV（RFC4180/BOM/公式注入防护）、Excel/CSV 安全导入、
       报表布局：跨列标题、表前/表后自由排版行与单元格合并、工作表级字体，
-      值转换器：Fluent lambda 与可带构造器实参的特性转换器，内含判定文案、脱敏、空值占位。
+      值转换器：Fluent lambda 与可带构造器实参的特性转换器，内含判定文案、脱敏、空值占位，
+      自适应列宽：同时评估表头与数据区，全角/半角按字宽估算，float 按最短往返表示写入。
     </Description>
     <PackageTags>excel;xlsx;csv;mapper;export;import;closedxml;openxml</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

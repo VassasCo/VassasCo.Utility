@@ -735,23 +735,26 @@ namespace VassasCo.Utility.Internals
             writer.WriteElement(columns);
         }
 
-        private static double EstimateWidth(string header, List<FinalRow>? rows, int col)
+        private double EstimateWidth(string header, List<FinalRow>? rows, int col)
         {
-            double width = DisplayWidth(header) + 2;
+            double? headerSize = _style.HeaderFontSize ?? _style.FontSize;
+            double width = ColumnWidthEstimator.ToColumnWidth(header, headerSize);
 
             if (rows != null)
             {
-                int scan = Math.Min(rows.Count, 200);
+                int scan = Math.Min(rows.Count, ColumnWidthEstimator.MaxScanRows);
                 for (int r = 0; r < scan; r++)
                 {
-                    double w = rows[r].Values[col] switch
+                    string? text = rows[r].Values[col] switch
                     {
-                        { Kind: FinalKind.Text } tv => DisplayWidth(tv.TextValue) + 2,
-                        { Kind: FinalKind.Date } => 12,
+                        { Kind: FinalKind.Text } tv => tv.TextValue,
+                        { Kind: FinalKind.Date } => DateWidthSample,
                         { Kind: FinalKind.Number } nv =>
-                            nv.NumberValue.ToString("0.##", CultureInfo.InvariantCulture).Length + 2,
-                        _ => 0
+                            nv.NumberValue.ToString("0.##", CultureInfo.InvariantCulture),
+                        _ => null
                     };
+
+                    double w = ColumnWidthEstimator.ToColumnWidth(text, _style.FontSize);
                     if (w > width) width = w;
                 }
             }
@@ -759,13 +762,8 @@ namespace VassasCo.Utility.Internals
             return Math.Max(width, 8);
         }
 
-        private static int DisplayWidth(string text)
-        {
-            int width = 0;
-            foreach (char c in text)
-                width += c > 127 ? 2 : 1;
-            return width;
-        }
+        /// <summary>日期列列宽的取样文本，代表 "yyyy-MM-dd HH:mm:ss" 的常见展示宽度</summary>
+        private const string DateWidthSample = "2000-01-01 00:00:00";
 
         private static void WriteTextCell(OpenXmlWriter writer, int row, int col, string text, uint? style)
         {
