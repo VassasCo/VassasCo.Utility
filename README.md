@@ -25,7 +25,7 @@
 | 项目 | 说明 | 目标框架 | NuGet 版本 | 文档 |
 |------|------|----------|-----------|------|
 | **VassasCo.Utility.ConfigHelper** | 实体类与 JSON/XML 配置文件双向映射，自研解析器，读写严格对称 | net472 / netstandard2.0 / net6.0 / net8.0 / net9.0 / net10.0 | 2.1.0 | [README](src/VassasCo.Utility.ConfigHelper/README.md) |
-| **VassasCo.Utility.ExcelMapper** | Excel / CSV 导入导出，支持 ClosedXML 与 OpenXml 流式引擎，支持插入图片 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.ExcelMapper/README.md) |
+| **VassasCo.Utility.ExcelMapper** | Excel / CSV 导入导出，支持 ClosedXML 与 OpenXml 流式引擎，支持插入图片、报表布局与值转换器 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.2.0 | [README](src/VassasCo.Utility.ExcelMapper/README.md) |
 | **VassasCo.Utility.LogHelper** | 异步文件日志，分类分文件 + 按天分目录 + 自动清理 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.LogHelper/README.md) |
 | **VassasCo.Utility.EventBus** | 进程内事件总线，支持特性注册 / 优先级 / 多通道 / 粘性事件 / 线程封送 / 弱引用订阅 | net472 / netstandard2.0 / net6.0 / net8.0 / net9.0 / net10.0 | 2.0.0 | [README](src/VassasCo.Utility.EventBus/README.md) |
 | **VassasCo.Utility.CrashDumpHelper** | 崩溃捕获，FirstChance 异常链 + Windows MiniDump；自动接管未处理异常与未观察 Task 异常 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.CrashDumpHelper/README.md) |
@@ -85,7 +85,27 @@ dotnet test VassasCo.Utility.slnx
 
 ## 更新说明
 
-### 2.1.0（当前）
+### 2.2.0（当前）
+
+**功能增强**
+
+- **ExcelMapper 报表布局**：新增 `WithTitle` / `WithPreamble` / `WithPostamble`，
+  可在数据表之外写入跨列标题与表前、表后自由排版区（抬头信息、落款、签名栏等），
+  单元格支持横向合并、字号、加粗、水平对齐与字体色 / 填充色。
+- **ExcelMapper 工作表级字体**：`ExcelStyle.FontName` / `FontSize` / `HeaderFontSize`。
+- **ExcelMapper 值转换器**：Fluent `ConvertUsing` 与可带构造器实参的 `[ExcelConverter]`，
+  同一种转换器可用不同实参产生不同输出；内置 `BooleanTextConverter`（判定文案）、
+  `MaskConverter`（文本脱敏）、`NullPlaceholderConverter`（空值占位）。
+  值转换器在两个引擎下均生效。
+
+**兼容性**
+
+- 新增能力均为新增成员，既有公开 API 签名不变。
+- 报表布局与图片一致，仅在 DOM 引擎实现：`Engine = Auto` 时检测到布局行自动选用 DOM；
+  显式指定流式引擎时抛 `ExcelPlanValidationException`，避免生成缺标题的文件。
+- 未使用任何布局方法时，表头仍从第 1 行开始，与旧版本行为完全一致。
+
+### 2.1.0
 
 **新增组件**
 
