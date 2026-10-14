@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net472;netstandard2.0;net6.0;net8.0</TargetFrameworks>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <RootNamespace>VassasCo.Utility</RootNamespace>
+    <AssemblyName>VassasCo.Utility.CrashDumpHelper</AssemblyName>
+
+    <PackageId>VassasCo.Utility.CrashDumpHelper</PackageId>
+    <Version>2.1.0</Version>
+    <Authors>VassasCo</Authors>
+    <Description>
+      崩溃捕获工具 — 记录崩溃前 FirstChance 异常链 + 生成 Windows MiniDump 文件。
+      特性：FirstChance 异常追踪（O(1) 环形缓冲）、崩溃日志、Windows MiniDump 生成、
+      可配置输出目录与保留天数、初始化重入保护、可注销监听、与 LogHelper 编译期集成。
+    </Description>
+    <PackageTags>crash;dump;minidump;exception;debugging;diagnostics</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://gitee.com/vassasco/VassasCo.Utility</PackageProjectUrl>
+    <RepositoryUrl>https://gitee.com/vassasco/VassasCo.Utility</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>VassasCoIcon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <!-- 让任意机器（含未安装 VS / 目标包的 CI）都能构建 net472：
+       PrivateAssets=all 确保该包不会作为依赖传递给使用方。 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- 显式项目引用 LogHelper（替代旧版反射字符串集成）：
+       打包后 NuGet 会自动生成 dependency VassasCo.Utility.LogHelper >= 2.1.0，
+       消费者安装本包即自动获得 LogHelper，不会运行时缺 DLL。 -->
+  <ItemGroup>
+    <ProjectReference Include="..\VassasCo.Utility.LogHelper\VassasCo.Utility.LogHelper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="True" PackagePath="\" />
+    <None Include="VassasCoIcon.png" Pack="True" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
