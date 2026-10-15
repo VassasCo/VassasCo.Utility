@@ -150,6 +150,8 @@ namespace VassasCo.Utility
             if (options != null)
                 _options = options;
 
+            CrashDumpTrace.Configure(ResolveLogDirectory(_options), _options.EnableTraceLog);
+
             AppDomain.CurrentDomain.FirstChanceException += _firstChanceHandler;
 
             if (_options.HookUnhandledException)
@@ -157,6 +159,11 @@ namespace VassasCo.Utility
 
             if (_options.HookUnobservedTaskException)
                 TaskScheduler.UnobservedTaskException += _unobservedTaskHandler;
+
+            CrashDumpTrace.Write(CrashDumpLogLevel.Info,
+                "崩溃捕获已初始化" +
+                (_options.HookUnhandledException ? "（含 UnhandledException）" : string.Empty) +
+                (_options.HookUnobservedTaskException ? "（含 UnobservedTaskException）" : string.Empty));
         }
 
         /// <summary>
@@ -175,8 +182,12 @@ namespace VassasCo.Utility
                 TaskScheduler.UnobservedTaskException -= _unobservedTaskHandler;
             }
 
+            // 记录放在 Reset 之前：Reset 会连同开关一起关掉，后置就什么都写不出去了。
+            CrashDumpTrace.Write(CrashDumpLogLevel.Info, "崩溃捕获已注销");
+
             // 无论此前是否已初始化，都完整复位，避免上一次配置/历史泄漏到下一次使用。
             _options = new CrashDumpOptions();
+            CrashDumpTrace.Reset();
             Volatile.Write(ref _processing, 0);
 
             lock (_firstChanceLock)
@@ -305,6 +316,9 @@ namespace VassasCo.Utility
                 sb.AppendLine();
 
                 File.AppendAllText(fileName, sb.ToString(), new UTF8Encoding(false));
+
+                CrashDumpTrace.Write(CrashDumpLogLevel.Info,
+                    $"FirstChance 缓冲已落盘 {entries.Count} 条（来源: {source}）");
             }
             catch (Exception ex)
             {
@@ -400,6 +414,10 @@ namespace VassasCo.Utility
         /// <summary>记录崩溃日志（传入自定义消息字符串）。</summary>
         /// <param name="message">崩溃详情。</param>
         /// <param name="source">来源描述。</param>
+        /// <remarks>
+        /// 收尾时会把内置跟踪日志的缓冲一并排空（受 <see cref="CrashDumpOptions.FlushLogger"/> 控制），
+        /// 保证本方法执行期间产生的跟踪记录不会因进程退出而丢失。
+        /// </remarks>
         public static void WriteCrashLog(string message, string source)
         {
             lock (_crashLock)
@@ -457,8 +475,16 @@ namespace VassasCo.Utility
 
                     File.AppendAllText(fileName, sb.ToString(), new UTF8Encoding(false));
 
+                    CrashDumpTrace.Write(CrashDumpLogLevel.Fatal,
+                        $"崩溃日志已写入（来源: {source}）");
+
                     GenerateMiniDump(dir, options);
                     CleanupExpiredFiles(dir, options);
+
+                    // 上面几步自身会产出跟踪日志。崩溃之后进程随时可能终止，
+                    // 尾部还留在缓冲里等于白记，因此这里再排一次。
+                    if (options.FlushLogger)
+                        CrashDumpTrace.Flush();
                 }
                 catch (Exception ex)
                 {
@@ -475,32 +501,28 @@ namespace VassasCo.Utility
         /// <param name="source">来源描述。</param>
         public static void FlushAndWriteCrashLog(Exception ex, string source)
         {
-            TryFlushLogger();
+            TryFlushTraceLog();
             WriteCrashLog(ex, source);
         }
 
         /// <summary>
-        /// 写崩溃日志前先 flush LogHelper 的缓冲队列，避免进程终止时丢失最后的日志。
-        /// 使用编译期项目引用而非反射字符串调用，可获得编译期检查与重构安全。
+        /// 写崩溃日志前先把内置跟踪日志的缓冲排空，避免进程终止时丢失最后的线索。
+        /// 由于跟踪日志不再依赖任何外部日志库，这里是直接的编译期调用。
         /// </summary>
-        private static void TryFlushLogger()
+        private static void TryFlushTraceLog()
         {
-            var options = _options;
-            if (!options.FlushLogger)
+            if (!_options.FlushLogger)
                 return;
 
             try
             {
-                // LogManager.Current 在日志系统未初始化时会抛异常，先判 IsInitialized
-                if (!LogManager.IsInitialized)
-                    return;
-
-                LogManager.Current.Flush();
+                CrashDumpTrace.Flush();
             }
             catch (Exception ex)
             {
+                // Flush 本身不抛异常；此处的捕获是为了让调用契约在任何实现变更下都成立。
                 ReportDiagnostic(
-                    $"[CrashDumpHelper] flush 日志系统失败（已继续写崩溃日志）: " +
+                    $"[CrashDumpHelper] flush 跟踪日志失败（已继续写崩溃日志）: " +
                     $"{ex.GetType().Name}: {ex.Message}");
             }
         }
@@ -557,6 +579,10 @@ namespace VassasCo.Utility
                 }
 
                 // 无论成功还是失败都留下记录，排查者才能区分「没生成」与「生成失败」。
+                CrashDumpTrace.Write(ok ? CrashDumpLogLevel.Info : CrashDumpLogLevel.Error,
+                    ok ? $"MiniDump 已生成: {dumpFileName}"
+                       : $"MiniDump 生成失败: {dumpFileName}（Win32 错误码 {win32Error}）");
+
                 AppendNote(directory, ok
                     ? $"MiniDump 已生成: {dumpFileName}"
                     : $"MiniDump 生成失败: {dumpFileName}（Win32 错误码 {win32Error}）");
@@ -588,7 +614,7 @@ namespace VassasCo.Utility
 
         /// <summary>
         /// 按保留天数清理崩溃目录下由本库生成的文件
-        /// （<c>Crash_*.log</c> 与 <c>CrashDump_*.dmp</c>）。
+        /// （<c>Crash_*.log</c>、<c>CrashDump_*.dmp</c> 与跟踪日志 <c>Trace_*.log</c>）。
         /// 只匹配本库前缀，避免误删同目录下的其他文件。
         /// </summary>
         private static void CleanupExpiredFiles(string directory, CrashDumpOptions options)
@@ -601,7 +627,7 @@ namespace VassasCo.Utility
             {
                 var cutoff = DateTime.Now.AddDays(-days);
 
-                var patterns = new[] { LogFilePrefix + "*.log", DumpFilePrefix + "*.dmp" };
+                var patterns = new[] { LogFilePrefix + "*.log", DumpFilePrefix + "*.dmp", CrashDumpTrace.FilePrefix + "*.log" };
                 foreach (var pattern in patterns)
                 {
                     string[] files;
@@ -645,7 +671,7 @@ namespace VassasCo.Utility
             var cutoff = DateTime.Now.AddDays(-days);
             int deleted = 0;
 
-            var patterns = new[] { LogFilePrefix + "*.log", DumpFilePrefix + "*.dmp" };
+            var patterns = new[] { LogFilePrefix + "*.log", DumpFilePrefix + "*.dmp", CrashDumpTrace.FilePrefix + "*.log" };
             foreach (var pattern in patterns)
             {
                 string[] files;
@@ -667,6 +693,9 @@ namespace VassasCo.Utility
                     }
                 }
             }
+
+            CrashDumpTrace.Write(CrashDumpLogLevel.Info,
+                $"过期文件清理完成，删除 {deleted} 个（保留 {days} 天）");
 
             return deleted;
         }
@@ -733,8 +762,20 @@ namespace VassasCo.Utility
 
         #region 诊断
 
-        private static void ReportDiagnostic(string message)
+        /// <summary>
+        /// 把诊断消息同时送入两个通道：内置跟踪日志（需 <see cref="CrashDumpOptions.EnableTraceLog"/>
+        /// 开启）与用户配置的 <see cref="CrashDumpOptions.Diagnostics"/> 回调。
+        /// <para>
+        /// 单向流动、不回流：<see cref="CrashDumpTrace"/> 自身的写失败被它内部静默吞掉，
+        /// 不会再回到本方法，因此不存在「写失败 → 上报 → 再写 → 再失败」的递归。
+        /// </para>
+        /// </summary>
+        /// <param name="message">诊断消息。</param>
+        /// <param name="level">送入跟踪日志时使用的级别。</param>
+        private static void ReportDiagnostic(string message, CrashDumpLogLevel level = CrashDumpLogLevel.Warn)
         {
+            CrashDumpTrace.Write(level, message);
+
             var sink = _options.Diagnostics;
             if (sink == null) return;
             try { sink(message); }

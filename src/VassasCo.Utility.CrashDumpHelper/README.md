@@ -31,7 +31,7 @@
 | **异常链追踪** | 采集崩溃前最近 50 条 FirstChance 异常（O(1) 环形缓冲，覆盖式） |
 | **崩溃日志** | 崩溃时间、来源、进程 ID / 名、运行时长、内存、线程数、完整堆栈 |
 | **MiniDump** | Windows 下生成 `.dmp`，转储类型可配置（默认 / 完整内存） |
-| **可配置** | 输出目录、是否生成 dump、dump 类型、保留天数、是否 flush 日志 |
+| **可配置** | 输出目录、是否生成 dump、dump 类型、保留天数、是否 flush 日志、是否开启内置跟踪日志 |
 | **自动清理** | 按保留天数自动删除过期的 `Crash_*.log` 与 `CrashDump_*.dmp` |
 | **自动接管** | 初始化时自动订阅 `UnhandledException` 与 `UnobservedTaskException`（可关闭） |
 | **异常降噪** | `ShouldIgnore` 过滤器剔除把异常当控制流产生的噪声 |
@@ -39,6 +39,8 @@
 | **重入保护** | `Initialize()` 重复调用安全，不会重复注册 handler，也不会覆盖生效中的配置 |
 | **可注销** | `Deinitialize()` 移除监听，适用于插件卸载 / 热重载 |
 | **诊断回调** | 目录创建失败、dump 失败等隐性问题可经回调上报 |
+| **内置跟踪日志** | 可选把本库自身的运行节点写入独立的 `Trace_*.log`；默认关闭，零开销 |
+| **零依赖** | 不引用任何第三方包或自家日志库，多项目并存不会重复安装 |
 
 ---
 
@@ -46,18 +48,19 @@
 
 | 目标框架 | 依赖 |
 |----------|------|
-| net472 | [VassasCo.Utility.LogHelper](https://www.nuget.org/packages/VassasCo.Utility.LogHelper) |
-| netstandard2.0 | 同上 |
-| net6.0 | 同上 |
-| net8.0 | 同上 |
+| net472 | 无 |
+| netstandard2.0 | 无 |
+| net6.0 | 无 |
+| net8.0 | 无 |
 
 > 新增 **net472**：供 .NET Framework 4.7.2+（含 4.8）传统桌面项目直接引用。
 > 构建期通过 `Microsoft.NETFramework.ReferenceAssemblies`（`PrivateAssets=all`）提供目标包，
 > **不会作为依赖传递给使用方**。
 >
-> **变更（2.0.0）**：与 LogHelper 的集成由反射改为**显式项目引用**。
-> 打包后 NuGet 会自动生成 `VassasCo.Utility.LogHelper >= 2.1.0` 依赖，
-> 消费者安装本包即自动获得 LogHelper，不会运行时缺 DLL。
+> **变更（2.2.0）**：本包已**零外部依赖**。此前为了「写崩溃日志前 flush 日志队列」这一个动作，
+> 引入了 `VassasCo.Utility.LogHelper` 的项目引用，代价是 NuGet 自动生成传递依赖、
+> 多项目并存时会重复安装同一份日志库。该职责现由库内的 `CrashDumpTrace` 承担
+> （可选开启，见 `EnableTraceLog`）。
 
 ---
 
@@ -133,7 +136,8 @@ CrashDumpHelper.Initialize(new CrashDumpOptions
     GenerateDump             = true,
     DumpType                 = MiniDumpType.Default,
     RetentionDays            = 30,                  // 0 或负数 = 不清理
-    FlushLogger              = true,                // 先 flush LogHelper 缓冲队列
+    FlushLogger              = true,                // 崩溃前先把内置跟踪日志缓冲排空
+    EnableTraceLog           = false,               // 本库自身的运行轨迹写入 Trace_*.log
     HookUnhandledException   = true,                // 自动接管未处理异常
     HookUnobservedTaskException = true,             // 自动接管未观察 Task 异常
     AutoFlushWhenFull        = true,                // 缓冲写满时自动落盘
@@ -183,6 +187,10 @@ static void Main()
 |------|------|
 | `Crash_20250617.log` | 崩溃日志（含 FirstChance 记录、异常详情、进程状态、堆栈） |
 | `CrashDump_20250617_143025_12345.dmp` | Windows MiniDump 文件（仅 Windows） |
+| `Trace_20250617.log` | 本库自身的运行轨迹（`EnableTraceLog = true` 时才有） |
+
+跟踪日志记录的是「本库在做了什么」，与崩溃日志相互独立，便于区分
+「程序为什么崩」和「崩溃库有没有正常工作」。
 
 日志结构：
 
@@ -226,7 +234,8 @@ static void Main()
 | `GenerateDump` | `true` | 是否生成 MiniDump（非 Windows 平台自动跳过） |
 | `DumpType` | `MiniDumpType.Default` | 转储类型；`Full` 信息最全但文件极大 |
 | `RetentionDays` | `30` | 崩溃文件保留天数；`<= 0` 表示不清理 |
-| `FlushLogger` | `true` | 写崩溃日志前是否先 flush LogHelper |
+| `FlushLogger` | `true` | 写崩溃日志前后是否排空内置跟踪日志的缓冲 |
+| `EnableTraceLog` | `false` | 是否把本库自身的运行轨迹写入 `Trace_yyyyMMdd.log`。关闭时零开销、零文件 |
 | `HookUnhandledException` | `true` | 初始化时自动订阅 `AppDomain.UnhandledException` |
 | `HookUnobservedTaskException` | `true` | 初始化时自动订阅 `TaskScheduler.UnobservedTaskException` |
 | `AutoFlushWhenFull` | `true` | 环形缓冲写满时自动落盘并清空 |
@@ -258,7 +267,7 @@ static void Main()
 | `Options` | 当前生效的配置 |
 | `WriteCrashLog(Exception, source)` | 记录崩溃日志（自动异常展开） |
 | `WriteCrashLog(string, source)` | 记录崩溃日志（自定义消息） |
-| `FlushAndWriteCrashLog(Exception, source)` | 先 flush LogHelper 再记录崩溃日志 |
+| `FlushAndWriteCrashLog(Exception, source)` | 先排空内置跟踪日志缓冲，再记录崩溃日志 |
 | `GetFirstChanceSnapshot()` | 取出当前 FirstChance 缓冲快照（旧 → 新） |
 | `FlushFirstChanceLog(source)` | 把当前缓冲落盘并清空，返回条数；不生成 MiniDump |
 | `CleanupExpiredFiles()` | 手动清理过期的崩溃文件，返回删除数量 |
@@ -269,8 +278,12 @@ static void Main()
 ## 注意事项
 
 - **MiniDump 依赖 Windows `dbghelp.dll`**，非 Windows 平台只生成日志、跳过 dump（会在日志里写明原因）。
-- **崩溃文件清理只匹配本库前缀**（`Crash_*.log` / `CrashDump_*.dmp`），不会误删同目录下的其他文件。
-- **与 LogHelper 的集成是编译期引用**：若未初始化 LogHelper，`FlushAndWriteCrashLog` 会跳过 flush 并继续写崩溃日志（旧版为反射静默跳过，失败原因无从得知）。
+- **零依赖，不与任何日志库耦合**：本库既不引用也不假设宿主用了什么日志框架。
+  若需要在崩溃前排空宿主日志队列，请自行在 `Diagnostics` 回调或自己的
+  `UnhandledException` 处理里调用 —— 由宿主掌握自己的生命周期，比由本库反向依赖更合理。
+  本库自身的可选 `Trace_*.log` 与宿主日志互不干扰。
+- **崩溃文件清理只匹配本库前缀**（`Crash_*.log` / `CrashDump_*.dmp` / `Trace_*.log`），
+  不会误删同目录下的其他文件。
 - **FirstChance 采集有性能代价**：每次异常都会构造一行字符串。正常业务里异常应该罕见，但若代码把异常当控制流用，开销会放大。
 - **环形缓冲覆盖式**：超过 50 条后最旧的会被挤出 —— 开启 `AutoFlushWhenFull`（默认）时，
   被挤出前会先落盘，因此不会真正丢失。若异常极其频繁（如把异常当控制流使用），
@@ -289,13 +302,42 @@ dotnet test
 
 CrashDumpHelper 单元测试覆盖：初始化重入保护（重复调用只注册一次）、
 Deinitialize 后不再采集、FirstChance 环形缓冲覆盖与快照顺序、
-崩溃日志写出与文件命名、保留天数清理、未初始化 LogHelper 时安全跳过 flush。
+崩溃日志写出与文件命名、保留天数清理、内置跟踪日志的开启/关闭/注销复位与过期清理。
 
 ---
 
 ## 更新说明
 
-### 2.1.0（当前）
+### 2.2.0（当前）
+
+**新增**
+
+- **内置跟踪日志**（`EnableTraceLog`，默认关闭）：把本库自身的运行节点
+  （初始化、注销、FirstChance 缓冲落盘、崩溃日志写入、dump 生成结果、过期清理）
+  写入独立的 `Trace_yyyyMMdd.log`。采用「缓冲 + 阈值自动落盘 + 崩溃时显式落盘」，
+  不使用后台线程，因此没有额外的生命周期管理与进程退出竞态。
+- 该文件与崩溃日志分离，便于区分「程序为什么崩」和「崩溃库有没有正常工作」，
+  并同样受 `RetentionDays` 约束。
+
+**变更**
+
+- **移除对 `VassasCo.Utility.LogHelper` 的依赖，本包转为零外部依赖。**
+  此前为了「写崩溃日志前 flush 日志队列」这一个动作引入了完整的项目引用，
+  其代价是 NuGet 自动生成传递依赖、多项目并存时重复安装同一份日志库。
+  该职责现由库内的跟踪日志模块承担。
+- `FlushLogger` 属性名保留（避免破坏既有调用方代码），语义改为
+  「写崩溃日志前后是否排空**内置**跟踪日志的缓冲」，默认值仍为 `true`。
+
+**兼容性**
+
+- 目标框架不变：`net472` / `netstandard2.0` / `net6.0` / `net8.0`。
+- 既有公开 API 签名不变；`FlushAndWriteCrashLog` 行为不变（未启用跟踪日志时排空为空操作）。
+- **反向不兼容的一点**：升级后不再自动向 `VassasCo.Utility.LogHelper` 传递依赖。
+  若此前依赖「装了 CrashDumpHelper 就顺带有了 LogHelper」，请改为显式引用 LogHelper。
+- 若此前依赖本库在崩溃前 flush **宿主的** LogHelper 队列，升级后该行为消失。
+  请在自己的 `UnhandledException` 处理或 `Diagnostics` 回调里显式调用。
+
+### 2.1.0
 
 **新增**
 

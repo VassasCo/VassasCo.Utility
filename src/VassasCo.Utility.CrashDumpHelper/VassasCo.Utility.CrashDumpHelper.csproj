@@ -11,12 +11,12 @@
     <AssemblyName>VassasCo.Utility.CrashDumpHelper</AssemblyName>
 
     <PackageId>VassasCo.Utility.CrashDumpHelper</PackageId>
-    <Version>2.1.0</Version>
+    <Version>2.2.0</Version>
     <Authors>VassasCo</Authors>
     <Description>
       崩溃捕获工具 — 记录崩溃前 FirstChance 异常链 + 生成 Windows MiniDump 文件。
       特性：FirstChance 异常追踪（O(1) 环形缓冲）、崩溃日志、Windows MiniDump 生成、
-      可配置输出目录与保留天数、初始化重入保护、可注销监听、与 LogHelper 编译期集成。
+      可配置输出目录与保留天数、初始化重入保护、可注销监听、内置可选跟踪日志、零外部依赖。
     </Description>
     <PackageTags>crash;dump;minidump;exception;debugging;diagnostics</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -36,12 +36,9 @@
     </PackageReference>
   </ItemGroup>
 
-  <!-- 显式项目引用 LogHelper（替代旧版反射字符串集成）：
-       打包后 NuGet 会自动生成 dependency VassasCo.Utility.LogHelper >= 2.1.0，
-       消费者安装本包即自动获得 LogHelper，不会运行时缺 DLL。 -->
-  <ItemGroup>
-    <ProjectReference Include="..\VassasCo.Utility.LogHelper\VassasCo.Utility.LogHelper.csproj" />
-  </ItemGroup>
+  <!-- 刻意保持零依赖：曾经为了「写崩溃日志前 flush 队列」这一个动作引入过 LogHelper 项目引用，
+       代价是 NuGet 自动生成传递依赖、多项目并存时会重复安装同一份日志库。
+       现在由库内的 CrashDumpTrace 承担该职责，本包不再带任何外部依赖。 -->
 
   <ItemGroup>
     <None Include="README.md" Pack="True" PackagePath="\" />

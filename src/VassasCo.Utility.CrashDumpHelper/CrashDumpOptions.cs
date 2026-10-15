@@ -113,7 +113,25 @@ namespace VassasCo.Utility
         /// </summary>
         public int RetentionDays { get; set; } = 30;
 
-        /// <summary>写崩溃日志前是否先 flush LogHelper 的缓冲队列。默认 <c>true</c>。</summary>
+        /// <summary>
+        /// 是否启用库内置的跟踪日志，把本库自身的运行节点写入
+        /// <c>{LogDirectory}/Trace_yyyyMMdd.log</c>。默认 <c>false</c>。
+        /// <para>
+        /// 跟踪日志与崩溃日志相互独立：前者记的是本库在做什么（初始化、注销、缓冲落盘、
+        /// dump 生成结果、过期清理），后者记的是宿主程序为什么崩。两者分开是为了不让
+        /// 排障时在同一份文件里做取舍。
+        /// </para>
+        /// </summary>
+        public bool EnableTraceLog { get; set; }
+
+        /// <summary>
+        /// 写崩溃日志前是否先把内置跟踪日志的缓冲落盘。默认 <c>true</c>。
+        /// <para>
+        /// 进程即将终止时内存里的日志会随进程一起消失，
+        /// 因此在落崩溃日志之前先排空跟踪缓冲。<see cref="EnableTraceLog"/> 为
+        /// <c>false</c> 时没有缓冲，本项为无害的空操作。
+        /// </para>
+        /// </summary>
         public bool FlushLogger { get; set; } = true;
 
         /// <summary>

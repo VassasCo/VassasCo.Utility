@@ -3,8 +3,7 @@
 面向 .NET 桌面端 / 服务端的通用工具库集合，包含配置管理、Excel 导入导出、日志、
 进程内事件总线、崩溃捕获五个独立组件。
 
-各组件可单独安装、互不强制依赖（唯一的例外是 CrashDumpHelper 依赖 LogHelper，
-用于崩溃前 flush 日志缓冲）。
+各组件可单独安装、**互不依赖**，可按需引入任意一个而不会带入其它组件。
 
 [![MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -29,7 +28,7 @@
 | **VassasCo.Utility.ExcelMapper** | Excel / CSV 导入导出，支持 ClosedXML 与 OpenXml 流式引擎，支持插入图片、报表布局与值转换器 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.3.0 | [README](src/VassasCo.Utility.ExcelMapper/README.md) |
 | **VassasCo.Utility.LogHelper** | 异步文件日志，分类分文件 + 按天分目录 + 自动清理 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.LogHelper/README.md) |
 | **VassasCo.Utility.EventBus** | 进程内事件总线，支持特性注册 / 优先级 / 多通道 / 粘性事件 / 线程封送 / 弱引用订阅 | net472 / netstandard2.0 / net6.0 / net8.0 / net9.0 / net10.0 | 2.0.0 | [README](src/VassasCo.Utility.EventBus/README.md) |
-| **VassasCo.Utility.CrashDumpHelper** | 崩溃捕获，FirstChance 异常链 + Windows MiniDump；自动接管未处理异常与未观察 Task 异常 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.1.0 | [README](src/VassasCo.Utility.CrashDumpHelper/README.md) |
+| **VassasCo.Utility.CrashDumpHelper** | 崩溃捕获，FirstChance 异常链 + Windows MiniDump；自动接管未处理异常与未观察 Task 异常，内置可选跟踪日志 | net472 / netstandard2.0 / net6.0 / net8.0 | 2.2.0 | [README](src/VassasCo.Utility.CrashDumpHelper/README.md) |
 
 ### 组件依赖关系
 
@@ -38,7 +37,7 @@ ConfigHelper      （零依赖）
 ExcelMapper       （零依赖，内部用 ClosedXML / OpenXml）
 LogHelper         （零依赖）
 EventBus          （零依赖）
-CrashDumpHelper   ──▶ LogHelper        ← 显式项目引用，打包后自动传递
+CrashDumpHelper   （零依赖，内置可选跟踪日志）
 ```
 
 ---
@@ -106,6 +105,16 @@ dotnet test VassasCo.Utility.slnx
 ---
 
 ## 更新说明
+
+### CrashDumpHelper 2.2.0（组件独立版本）
+
+- **移除对 LogHelper 的依赖，CrashDumpHelper 转为零依赖组件。**
+  此前为了「写崩溃日志前 flush 日志队列」这一个动作引入了完整的项目引用，
+  代价是 NuGet 自动生成传递依赖、多项目并存时重复安装同一份日志库。
+- 新增**内置可选跟踪日志**（`EnableTraceLog`，默认关闭）：本库自身的运行节点
+  写入独立的 `Trace_yyyyMMdd.log`，与崩溃日志分离。
+- `FlushLogger` 属性名保留，语义改为「排空内置跟踪日志的缓冲」。
+  详见 [组件 README](src/VassasCo.Utility.CrashDumpHelper/README.md) 的兼容性说明。
 
 ### 2.3.0（当前）
 

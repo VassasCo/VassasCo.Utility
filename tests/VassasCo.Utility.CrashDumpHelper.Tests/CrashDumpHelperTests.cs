@@ -259,14 +259,14 @@ namespace VassasCo.Utility.Tests
         }
 
         [Fact]
-        public void FlushAndWriteCrashLog_WithoutLogHelper_DoesNotThrow()
+        public void FlushAndWriteCrashLog_WithoutTraceLog_DoesNotThrow()
         {
             var dir = CreateTempDir();
 
             CrashDumpHelper.Deinitialize();
             CrashDumpHelper.Initialize(OptionsFor(dir));
 
-            // LogManager 未初始化时应安全跳过 flush，且整体不抛异常
+            // 跟踪日志未开启时应安全跳过 flush，且整体不抛异常
             var ex = Record.Exception(() =>
                 CrashDumpHelper.FlushAndWriteCrashLog(new Exception("boom"), "UnitTest"));
 
@@ -286,6 +286,91 @@ namespace VassasCo.Utility.Tests
 
             var files = Directory.GetFiles(dir, "Crash_*.log");
             Assert.Single(files);
+        }
+
+        #endregion
+
+        #region 内置跟踪日志
+
+        /// <summary>跟踪日志默认关闭，不应在崩溃目录下多出任何额外文件。</summary>
+        [Fact]
+        public void EnableTraceLog_DefaultOff_WritesNoTraceFile()
+        {
+            var dir = CreateTempDir();
+
+            CrashDumpHelper.Deinitialize();
+            CrashDumpHelper.Initialize(OptionsFor(dir));
+
+            CrashDumpHelper.FlushAndWriteCrashLog(new InvalidOperationException("boom"), "UnitTest");
+
+            Assert.Single(Directory.GetFiles(dir, "Crash_*.log"));
+            Assert.Empty(Directory.GetFiles(dir, "Trace_*.log"));
+        }
+
+        /// <summary>
+        /// 开启后本库自身的关键节点（初始化、写崩溃日志）进入 Trace_*.log，
+        /// 且与崩溃日志各自成文件，互不干扰。
+        /// </summary>
+        [Fact]
+        public void EnableTraceLog_Enabled_WritesSeparateTraceFile()
+        {
+            var dir = CreateTempDir();
+            var options = OptionsFor(dir);
+            options.EnableTraceLog = true;
+
+            CrashDumpHelper.Deinitialize();
+            CrashDumpHelper.Initialize(options);
+
+            CrashDumpHelper.FlushAndWriteCrashLog(new InvalidOperationException("boom"), "UnitTest");
+
+            var traces = Directory.GetFiles(dir, "Trace_*.log");
+            Assert.Single(traces);
+
+            var content = File.ReadAllText(traces[0]);
+            Assert.Contains("崩溃捕获已初始化", content);
+            Assert.Contains("崩溃日志已写入", content);
+
+            // 崩溃日志不受影响，且不会被 Trace_ 文件混入计数
+            Assert.Single(Directory.GetFiles(dir, "Crash_*.log"));
+        }
+
+        /// <summary>跟踪日志同样受保留天数约束，避免长期运行后独自撑满磁盘。</summary>
+        [Fact]
+        public void CleanupExpiredFiles_RemovesExpiredTraceFiles()
+        {
+            var dir = CreateTempDir();
+
+            CrashDumpHelper.Deinitialize();
+            CrashDumpHelper.Initialize(new CrashDumpOptions
+            {
+                LogDirectory = dir,
+                GenerateDump = false,
+                RetentionDays = 7
+            });
+
+            var oldTrace = Path.Combine(dir, "Trace_20200101.log");
+            File.WriteAllText(oldTrace, "old");
+            File.SetLastWriteTime(oldTrace, DateTime.Now.AddDays(-30));
+
+            Assert.Equal(1, CrashDumpHelper.CleanupExpiredFiles());
+            Assert.False(File.Exists(oldTrace));
+        }
+
+        /// <summary>注销会复位跟踪日志的开关与缓冲，之后不再产生跟踪文件。</summary>
+        [Fact]
+        public void Deinitialize_ResetsTraceLogState()
+        {
+            var dir = CreateTempDir();
+            var options = OptionsFor(dir);
+            options.EnableTraceLog = true;
+
+            CrashDumpHelper.Deinitialize();
+            CrashDumpHelper.Initialize(options);
+            CrashDumpHelper.Deinitialize();
+
+            CrashDumpHelper.WriteCrashLog(new InvalidOperationException("after reset"), "UnitTest");
+
+            Assert.Empty(Directory.GetFiles(dir, "Trace_*.log"));
         }
 
         #endregion
